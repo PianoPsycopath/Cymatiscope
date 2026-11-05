@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CYMATISCOPE</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/dials.css">
+</head>
+<body>
+
+    <div class="app">
+
+        <header class="hdr">
+            <div class="hdr-id">CYMATISCOPE<span>-01</span></div>
+            <div class="hdr-mid">
+                <div class="hdr-title">Polyphonic Chladni Synthesizer <span class="jp">共鳴解析</span></div>
+                <div class="hdr-sub">Cymatics resonance unit</div>
+                <div class="hatch"></div>
+            </div>
+            <div class="hdr-state"><i></i>SYNC NOMINAL</div>
+        </header>
+
+        <div class="main-wrap">
+        <main class="grid">
+
+            <section class="panel scope-panel">
+                <div class="pt"><span class="no">01</span>Nodal Map<span class="fill"></span></div>
+                <div class="scope">
+                    <div class="scope-screen">
+                        <canvas id="chladniCanvas" width="600" height="600"></canvas>
+                        <button id="btnFullscreen" class="scope-fs" title="Full screen (Esc to exit)">&#x26F6; FULL</button>
+
+                        <div id="canvasChangeBadge" class="badge left hidden">
+                            <span id="changeLed" class="led"></span>
+                            <span id="chordReadout">--</span>
+                            <span id="changeCountBadge" class="count">1/1</span>
+                        </div>
+
+                        <div class="badge right">
+                            <span class="pulse"></span>
+                            <span id="fpsDisplay">60 FPS</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="spectrum">
+                    <canvas id="spectrumCanvas" width="600" height="110"></canvas>
+                </div>
+            </section>
+
+            <div class="col">
+                <section class="panel">
+                    <div class="pt"><span class="no">02</span>Plate<span class="fill"></span></div>
+                    <div class="pb">
+                        <div class="sub-title">2D Plate</div>
+                        <div class="seg">
+                            <button id="btnSquare" class="btn on">Square</button>
+                            <button id="btnCircle" class="btn">Circle</button>
+                        </div>
+                        <div class="sub-title">3D Surface <em>volumetric standing wave</em></div>
+                        <div class="seg grid2">
+                            <button id="btnSphere" class="btn" data-shape3d="sphere">Sphere</button>
+                            <button id="btnCylinder" class="btn" data-shape3d="cylinder">Cylinder</button>
+                            <button id="btnTorus" class="btn" data-shape3d="torus">Torus</button>
+                            <button id="btnCube" class="btn" data-shape3d="cube">Cube</button>
+                        </div>
+                        <div class="row">
+                            <label for="autoOrbitToggle">3D Auto-Orbit</label>
+                            <input type="checkbox" id="autoOrbitToggle" class="sw" checked>
+                        </div>
+                        <div class="row">
+                            <label for="latticeSlider" title="Wire density of the 3D nodal surface: 1 = every cell, 3 = sparse grid">3D Lattice</label>
+                            <input type="range" id="latticeSlider" min="1" max="3" step="1" value="2">
+                        </div>
+                        <div class="row">
+                            <label for="cutawaySlider" title="Slice away the near half of the volume to look inside">3D Cutaway</label>
+                            <input type="range" id="cutawaySlider" min="0" max="100" step="1" value="0">
+                        </div>
+                        <div class="row">
+                            <label for="skinToggle" title="Faint translucent skin under the wire lattice">3D Skin</label>
+                            <input type="checkbox" id="skinToggle" class="sw">
+                        </div>
+                        <div class="row">
+                            <label for="rotLockToggle" title="Freeze the 3D view: no auto-orbit, no dragging (wheel zoom still works)">Lock Rotation</label>
+                            <input type="checkbox" id="rotLockToggle" class="sw">
+                        </div>
+                    </div>
+                </section>
+
+                <section class="panel">
+                    <div class="pt"><span class="no">03</span>Frequencies<span class="fill"></span>
+                        <span id="formLockStatus" class="tag hidden">LOCKED</span>
+                    </div>
+                    <div class="pb tight">
+                        <div id="activeKeysDisplay" class="keys"><span class="empty">-- NO SIGNAL --</span></div>
+                        <div class="readouts">
+                            <div id="harmonyStatus" class="readout gold hidden"></div>
+                            <div id="clashStatus" class="readout clash hidden"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="panel">
+                    <div class="pt"><span class="no">04</span>Tension<span class="fill"></span>
+                        <span id="tensionKey" class="tag">KEY --</span>
+                    </div>
+                    <div class="pb tension-body">
+                        <div class="vmeter" title="Tension">
+                            <div class="meter"><div id="tensionFill"></div></div>
+                        </div>
+                        <div class="tension-main">
+                            <div class="row">
+                                <span class="sub-title">Phrase</span>
+                                <span id="tensionState" class="st-idle">IDLE</span>
+                            </div>
+                            <canvas id="tensionGraph" width="300" height="48"></canvas>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <div class="col">
+                <section class="panel">
+                    <div class="pt"><span class="no">05</span>Audio Input<span class="fill"></span></div>
+                    <div class="pb">
+
+                        <div class="src-grid">
+                            <label for="musicFileInput" class="btn solid">Load File</label>
+                            <label for="scoreFileInput" class="btn solid">Load Score</label>
+                            <button id="btnMidiIn" class="btn">MIDI Keyboard</button>
+                            <button id="btnTabAudio" class="btn">Tab Audio</button>
+                        </div>
+                        <input type="file" id="musicFileInput" accept="audio/*" class="hidden">
+                        <input type="file" id="scoreFileInput" accept=".mid,.midi,.xml,.musicxml" class="hidden">
+
+                        <div class="sub">
+                            <div class="row">
+                                <div id="musicStatus" class="status-line grow">No file</div>
+                                <button id="btnCloseMusic" class="btn small hidden">Close</button>
+                            </div>
+                            <div id="musicProgress" class="meter thin hidden">
+                                <div id="musicProgressFill" class="fill-bar" style="width: 0%"></div>
+                            </div>
+                            <audio id="musicPlayer" controls class="hidden"></audio>
+                            <div class="row">
+                                <label for="syncSlider" title="Positive = the form changes a little earlier than the notes you hear">Sync Offset</label>
+                                <div class="ctl">
+                                    <input type="range" id="syncSlider" min="-300" max="300" step="10" value="0">
+                                    <span id="syncLabel" class="val">0ms</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="sub">
+                            <div class="row">
+                                <select id="scoreInstrument" class="sel"></select>
+                                <button id="btnScorePlay" class="btn small" disabled>Play</button>
+                            </div>
+                            <div id="scoreStatus" class="status-line">No score</div>
+                            <div id="scoreProgress" class="meter thin"><div id="scoreProgressFill" class="fill-bar" style="width: 0%"></div></div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <div class="col">
+                <section class="panel">
+                    <div class="pt"><span class="no">06</span>Form Mode<span class="fill"></span></div>
+                    <div class="pb">
+                        <div class="seg">
+                            <button id="btnModeLocked" class="btn on">Locked</button>
+                            <button id="btnModeContinuous" class="btn">Continuous</button>
+                        </div>
+
+                        <div id="changeEveryContainer" class="sub">
+                            <div class="row">
+                                <span class="sub-title">Change Every</span>
+                                <div class="seg compact">
+                                    <button data-changes="1" class="change-div-btn btn small on">1</button>
+                                    <button data-changes="2" class="change-div-btn btn small">2</button>
+                                    <button data-changes="4" class="change-div-btn btn small">4</button>
+                                </div>
+                                <button id="btnSnapForm" class="btn small amber" title="Snap to a new form right now">Snap Form</button>
+                            </div>
+
+                            <div class="meter-block">
+                                <div class="row">
+                                    <span class="sub-title">Change</span>
+                                    <span id="changeStateText" class="st-idle">Ready</span>
+                                </div>
+                                <div class="meter">
+                                    <div id="energyBarFill"></div>
+                                    <div id="thresholdMarker" style="left: 55%;"></div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <label for="sensitivitySlider">Sensitivity</label>
+                                <input type="range" id="sensitivitySlider" min="1.10" max="1.90" step="0.05" value="1.35">
+                            </div>
+                            <div class="row">
+                                <label for="cooldownSlider">Min Gap</label>
+                                <div class="ctl">
+                                    <input type="range" id="cooldownSlider" min="140" max="500" step="20" value="240">
+                                    <span id="cooldownLabel" class="val">240ms</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="panel">
+                    <div class="pt"><span class="no">07</span>Settings<span class="fill"></span></div>
+                    <div class="pb">
+                        <div class="row">
+                            <label for="speedSlider">Speed</label>
+                            <input type="range" id="speedSlider" min="0.5" max="5" step="0.1" value="1.8">
+                        </div>
+                        <div class="row">
+                            <label for="volumeSlider">Volume</label>
+                            <input type="range" id="volumeSlider" min="0" max="0.25" step="0.005" value="0.08">
+                        </div>
+                        <div class="tgl-grid">
+                            <div class="row">
+                                <label for="nodalToggle">Nodal Lines</label>
+                                <input type="checkbox" id="nodalToggle" class="sw">
+                            </div>
+                            <div class="row">
+                                <label for="particleToggle">Particles</label>
+                                <input type="checkbox" id="particleToggle" class="sw" checked>
+                            </div>
+                            <div class="row">
+                                <label for="goldToggle" title="Nodal lines glow gold where perfect intervals (octave, fifth, fourth) or Solfeggio pitches sound">&#10022; Gold</label>
+                                <input type="checkbox" id="goldToggle" class="sw gold" checked>
+                            </div>
+                            <div class="row">
+                                <label for="clashToggle" title="Nodal lines flash red where clashing intervals (minor 2nd, tritone, major 7th...) sound">&#10006; Clash</label>
+                                <input type="checkbox" id="clashToggle" class="sw red" checked>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+        </div>
+
+        <section class="panel">
+            <div class="pt"><span class="no">08</span>Effects<span class="fill"></span>
+                <span class="pt-note">all audio inputs</span>
+            </div>
+            <div class="pb fx-body">
+                <div class="fx-ctl">
+                    <div class="fx-presets">
+                        <button class="btn small" data-fx-preset="dry">Dry</button>
+                        <button class="btn small" data-fx-preset="room">Room</button>
+                        <button class="btn small" data-fx-preset="hall">Hall</button>
+                        <button class="btn small" data-fx-preset="cathedral">Cathedral</button>
+                        <button class="btn small" data-fx-preset="dub">Dub</button>
+                        <button class="btn small" data-fx-preset="lofi">Lo-Fi</button>
+                    </div>
+                    <div class="fx-toggles">
+                        <div class="row">
+                            <label for="fxEnable">Effects</label>
+                            <input type="checkbox" id="fxEnable" class="sw" checked>
+                        </div>
+                        <div class="row">
+                            <label for="fxTab" title="Mutes the captured tab and plays it through the effects instead (Chrome / Edge). Takes effect when you start tab capture.">Process Tab</label>
+                            <input type="checkbox" id="fxTab" class="sw">
+                        </div>
+                        <div class="row">
+                            <label for="fxPlate" title="Filters remove modes by pitch, reverb leaves fading ghosts of past notes, echo brings back earlier forms">On Plate</label>
+                            <input type="checkbox" id="fxPlate" class="sw" checked>
+                        </div>
+                    </div>
+                    <div id="fxStatus" class="status-line"></div>
+                </div>
+                <div class="fx-grid dials">
+                    <div class="sub">
+                        <span class="sub-title">Master</span>
+                        <div class="dial-row">
+                            <div class="dial-cell">
+                                <label for="fxWet">Wet</label>
+                                <input type="range" id="fxWet" class="dial-src" min="0" max="100" step="1" value="100">
+                                <span id="fxWetVal" class="val">100%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="sub">
+                        <span class="sub-title">Reverb</span>
+                        <div class="dial-row">
+                            <div class="dial-cell">
+                                <label for="fxRevMix">Mix</label>
+                                <input type="range" id="fxRevMix" class="dial-src" min="0" max="100" step="1" value="25">
+                                <span id="fxRevMixVal" class="val">25%</span>
+                            </div>
+                            <div class="dial-cell">
+                                <label for="fxRevDecay">Decay</label>
+                                <input type="range" id="fxRevDecay" class="dial-src" min="0.3" max="6" step="0.1" value="2">
+                                <span id="fxRevDecayVal" class="val">2.0s</span>
+                            </div>
+                            <div class="dial-cell">
+                                <label for="fxRevDamp">Damping</label>
+                                <input type="range" id="fxRevDamp" class="dial-src" min="0" max="100" step="1" value="50">
+                                <span id="fxRevDampVal" class="val">50%</span>
+                            </div>
+                            <div class="dial-cell">
+                                <label for="fxRevPre">Pre-Delay</label>
+                                <input type="range" id="fxRevPre" class="dial-src" min="0" max="120" step="1" value="20">
+                                <span id="fxRevPreVal" class="val">20ms</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="sub">
+                        <span class="sub-title">Echo</span>
+                        <div class="dial-row">
+                            <div class="dial-cell">
+                                <label for="fxEchoMix">Mix</label>
+                                <input type="range" id="fxEchoMix" class="dial-src" min="0" max="100" step="1" value="0">
+                                <span id="fxEchoMixVal" class="val">0%</span>
+                            </div>
+                            <div class="dial-cell">
+                                <label for="fxEchoTime">Time</label>
+                                <input type="range" id="fxEchoTime" class="dial-src" min="40" max="800" step="10" value="320">
+                                <span id="fxEchoTimeVal" class="val">320ms</span>
+                            </div>
+                            <div class="dial-cell">
+                                <label for="fxEchoFb">Feedback</label>
+                                <input type="range" id="fxEchoFb" class="dial-src" min="0" max="90" step="1" value="35">
+                                <span id="fxEchoFbVal" class="val">35%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="sub">
+                        <span class="sub-title">Filter</span>
+                        <div class="dial-row">
+                            <div class="dial-cell">
+                                <label for="fxLp">Low-Pass</label>
+                                <input type="range" id="fxLp" class="dial-src" min="0" max="100" step="1" value="100">
+                                <span id="fxLpVal" class="val">20.0k</span>
+                            </div>
+                            <div class="dial-cell">
+                                <label for="fxHp">High-Pass</label>
+                                <input type="range" id="fxHp" class="dial-src" min="0" max="100" step="1" value="0">
+                                <span id="fxHpVal" class="val">20Hz</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="pt"><span class="no">09</span>Piano<span class="fill"></span>
+                <button id="btnClearKeys" class="btn small">Clear Keys</button>
+                <span class="pt-note">A0 &ndash; C8</span>
+            </div>
+            <div class="piano-wrap">
+                <div id="pianoContainer" class="piano"></div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Use plain scripts. The page then works from a file. Load main.js last: it starts the loop. -->
+    <script src="js/synth.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/lookup-tables.js"></script>
+    <script src="js/volume-field.js"></script>
+    <script src="js/render-buffers.js"></script>
+    <script src="js/particles.js"></script>
+    <script src="js/harmony-analysis.js"></script>
+    <script src="js/wave-field.js"></script>
+    <script src="js/nodal-renderer.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="js/shape-3d.js"></script>
+    <script src="js/harmony-tracker.js"></script>
+    <script src="js/file-analysis.js"></script>
+    <script src="js/live-audio.js"></script>
+    <script src="js/music-file.js"></script>
+    <script src="js/ui-piano.js"></script>
+    <script src="js/ui-controls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/soundfont-player@0.12.0/dist/soundfont-player.min.js"></script>
+    <script src="js/fx-chain.js"></script>
+    <script src="js/dials.js"></script>
+    <script src="js/fx-plate.js"></script>
+    <script src="js/score-input.js"></script>
+    <script src="js/spectrum-graph.js"></script>
+    <script src="js/tension-meter.js"></script>
+    <script src="js/multi-view.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
