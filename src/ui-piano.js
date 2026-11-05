@@ -1,6 +1,10 @@
+import { activeOscillators, audioCtx, initAudio, masterGain } from './synth.js';
+import { activeKeysMap, audioPeakSlots, state } from './config.js';
+import { joltParticles } from './particles.js';
+
 const MAX_FREQ_CHIPS = 9;
 
-function updateDisplay() {
+export function updateDisplay() {
     const display = document.getElementById('activeKeysDisplay');
     const chips = [];
 
@@ -9,13 +13,13 @@ function updateDisplay() {
         chips.push({ cls: 'key', text: `${label} ${Math.round(info.freq)}Hz` });
     }
 
-    if (isListeningToTab) {
-        if (audioSyncMode === 'locked' && lockedAudioPeaks.length > 0) {
-            const sortedLocked = [...lockedAudioPeaks].sort((a, b) => a.freq - b.freq);
+    if (state.isListeningToTab) {
+        if (state.audioSyncMode === 'locked' && state.lockedAudioPeaks.length > 0) {
+            const sortedLocked = [...state.lockedAudioPeaks].sort((a, b) => a.freq - b.freq);
             for (const item of sortedLocked) {
                 chips.push({ cls: 'lock', text: `LK ${Math.round(item.freq)}Hz` });
             }
-        } else if (audioSyncMode === 'continuous' && audioPeakSlots.length > 0) {
+        } else if (state.audioSyncMode === 'continuous' && audioPeakSlots.length > 0) {
             const sortedAudio = [...audioPeakSlots]
                 .filter(s => s.weight > 0.12)
                 .sort((a, b) => a.freq - b.freq);

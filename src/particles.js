@@ -1,3 +1,19 @@
+import { DISPLAY_SIZE, FIELD_SIZE, NUM_PARTICLES, state } from './config.js';
+import { ampField } from './lookup-tables.js';
+import {
+    particleColorLUT,
+    particleImageData,
+    particlePixels32,
+    particleStampCanvas,
+    particleStampCtx,
+    SCOPE_BG_RGB,
+    trailCtx,
+} from './render-buffers.js';
+import { fieldModeCount } from './wave-field.js';
+import { joltShape3D } from './shape-3d.js';
+import { fxVisSoft } from './fx-plate.js';
+import { joltMultiView, multiViewActive } from './multi-view.js';
+
 function seedParticleSet(s) {
     for (let i = 0; i < NUM_PARTICLES; i++) {
         s.pxArr[i] = Math.random() * 2 - 1;
@@ -9,7 +25,7 @@ function seedParticleSet(s) {
     }
 }
 
-function createParticleSet() {
+export function createParticleSet() {
     const s = {
         pxArr: new Float32Array(NUM_PARTICLES),
         pyArr: new Float32Array(NUM_PARTICLES),
@@ -22,15 +38,15 @@ function createParticleSet() {
     return s;
 }
 
-const MAIN_PARTICLES = createParticleSet();
-let pxArr = MAIN_PARTICLES.pxArr;
-let pyArr = MAIN_PARTICLES.pyArr;
+export const MAIN_PARTICLES = createParticleSet();
+export let pxArr = MAIN_PARTICLES.pxArr;
+export let pyArr = MAIN_PARTICLES.pyArr;
 let pvxArr = MAIN_PARTICLES.pvxArr;
 let pvyArr = MAIN_PARTICLES.pvyArr;
 let pFricArr = MAIN_PARTICLES.pFricArr;
 let pSpeedArr = MAIN_PARTICLES.pSpeedArr;
 
-function bindParticleSet(s) {
+export function bindParticleSet(s) {
     pxArr = s.pxArr;
     pyArr = s.pyArr;
     pvxArr = s.pvxArr;
@@ -39,25 +55,25 @@ function bindParticleSet(s) {
     pSpeedArr = s.pSpeedArr;
 }
 
-function joltBoundParticles(strength) {
+export function joltBoundParticles(strength) {
     for (let i = 0; i < NUM_PARTICLES; i++) {
         pvxArr[i] += (Math.random() - 0.5) * strength;
         pvyArr[i] += (Math.random() - 0.5) * strength;
     }
 }
 
-function joltParticles(strength = 0.08) {
+export function joltParticles(strength = 0.08) {
     if (multiViewActive()) { joltMultiView(strength); return; }
-    if (shape3d) { joltShape3D(strength); return; }
+    if (state.shape3d) { joltShape3D(strength); return; }
     joltBoundParticles(strength);
 }
 
-function updateAndDrawParticles() {
+export function updateAndDrawParticles() {
     particlePixels32.fill(0);
 
     const hasSound = fieldModeCount > 0;
-    const isCircle = plateShape === 'circle';
-    const speedMult = globalSpeedMultiplier;
+    const isCircle = state.plateShape === 'circle';
+    const speedMult = state.globalSpeedMultiplier;
     const scaleToGrid = (FIELD_SIZE - 3) * 0.5;
     const scaleToCanvas = (DISPLAY_SIZE - 2) * 0.5;
 
@@ -139,7 +155,7 @@ function updateAndDrawParticles() {
 
     particleStampCtx.putImageData(particleImageData, 0, 0);
 
-    const baseTrail = (isListeningToTab && audioSyncMode === 'continuous') ? 0.22 : 0.34;
+    const baseTrail = (state.isListeningToTab && state.audioSyncMode === 'continuous') ? 0.22 : 0.34;
     const trailAlpha = Math.max(0.1, baseTrail - 0.2 * fxVisSoft());
     trailCtx.fillStyle = `rgba(${SCOPE_BG_RGB}, ${trailAlpha})`;
     trailCtx.fillRect(0, 0, DISPLAY_SIZE, DISPLAY_SIZE);

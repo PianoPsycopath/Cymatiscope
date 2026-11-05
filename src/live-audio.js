@@ -1,36 +1,38 @@
-let isListeningToTab = false;
-let tabAudioCtx;
-let tabAnalyser;
+import { audioPeakSlots, state } from './config.js';
+import { joltParticles } from './particles.js';
+import { HarmonyChangeTracker } from './harmony-tracker.js';
+import { fileMode, fileScheduleStep, stopFileAudio } from './music-file.js';
+import { updateDisplay } from './ui-piano.js';
+import { fxCreate, fxStatus, fxTabCanMute, fxTabWanted } from './fx-chain.js';
+
 let tabStream;
-let tabAudioDataArray;
+export let tabAudioDataArray;
 // This analyser has little smoothing. Smoothing blurs the sharp onsets that the tracker needs.
 let onsetAnalyser;
 let onsetDb;
 let harmonyTracker = null;
 // Take the snapshot after the change. The new notes then fill the FFT window.
 let pendingSnapshotAt = 0;
-let meterHold = 0;
-let lastChordShown = null;
 let uiFrameCount = 0;
 const SNAPSHOT_DELAY_MS = 100;
 
-const energyBarFill = document.getElementById('energyBarFill');
+export const energyBarFill = document.getElementById('energyBarFill');
 const thresholdMarker = document.getElementById('thresholdMarker');
 const changeStateText = document.getElementById('changeStateText');
 const changeLed = document.getElementById('changeLed');
-const chordReadout = document.getElementById('chordReadout');
-const changeCountBadge = document.getElementById('changeCountBadge');
-const canvasChangeBadge = document.getElementById('canvasChangeBadge');
-const formLockStatus = document.getElementById('formLockStatus');
+export const chordReadout = document.getElementById('chordReadout');
+export const changeCountBadge = document.getElementById('changeCountBadge');
+export const canvasChangeBadge = document.getElementById('canvasChangeBadge');
+export const formLockStatus = document.getElementById('formLockStatus');
 
-function lockFormFromPeaks(peaks, flip) {
+export function lockFormFromPeaks(peaks, flip) {
     const top = peaks.slice(0, 4);
     if (top.length === 0) return;
-    if (flip) formFlipSign = -formFlipSign;
+    if (flip) state.formFlipSign = -state.formFlipSign;
 
-    lockedAudioPeaks = top.map((peak, idx) => {
+    state.lockedAudioPeaks = top.map((peak, idx) => {
         const freq = Math.max(40, Math.min(peak.freq, 2000));
-        const swap = formFlipSign < 0 && idx % 2 === 0;
+        const swap = state.formFlipSign < 0 && idx % 2 === 0;
         return {
             freq,
             m: swap ? freq / 80 : freq / 120,
@@ -44,26 +46,26 @@ function lockFormFromPeaks(peaks, flip) {
     updateDisplay();
 }
 
-function lockFormFromSpectrum(selectedPeaks, nyquist, binCount, flip) {
+export function lockFormFromSpectrum(selectedPeaks, nyquist, binCount, flip) {
     lockFormFromPeaks(selectedPeaks.map(p => ({
         freq: (p.index * nyquist) / binCount,
         norm: (p.value - 95) / 155
     })), flip);
 }
 
-function flashFormChange(isFormChange) {
+export function flashFormChange(isFormChange) {
     changeLed.className = isFormChange ? 'led snap' : 'led hit';
     changeStateText.textContent = isFormChange ? 'FORM SNAP!' : 'CHANGE';
     changeStateText.className = isFormChange ? 'st-snap' : 'st-hit';
 
     setTimeout(() => {
         changeLed.className = 'led';
-        changeStateText.textContent = audioSyncMode === 'locked' ? 'Locked' : 'Tracking';
+        changeStateText.textContent = state.audioSyncMode === 'locked' ? 'Locked' : 'Tracking';
         changeStateText.className = 'st-idle';
     }, 130);
 }
 
-function extractTopPeaks(nyquist, binCount) {
+export function extractTopPeaks(nyquist, binCount) {
     const maxBin = Math.min(binCount - 2, Math.ceil((2200 / nyquist) * binCount));
     const candidates = [];
     for (let i = 3; i < maxBin; i++) {
@@ -126,41 +128,41 @@ function updateContinuousSlots(selectedPeaks, nyquist, binCount) {
     }
 }
 
-function processTabAudioSpectrum(nowMs) {
-    if (!isListeningToTab || !tabAnalyser || (!fileMode && !harmonyTracker)) return;
+export function processTabAudioSpectrum(nowMs) {
+    if (!state.isListeningToTab || !state.tabAnalyser || (!fileMode && !harmonyTracker)) return;
 
-    const binCount = tabAnalyser.frequencyBinCount;
+    const binCount = state.tabAnalyser.frequencyBinCount;
     if (!tabAudioDataArray || tabAudioDataArray.length !== binCount) {
         tabAudioDataArray = new Uint8Array(binCount);
     }
-    tabAnalyser.getByteFrequencyData(tabAudioDataArray);
+    state.tabAnalyser.getByteFrequencyData(tabAudioDataArray);
     if (!fileMode) onsetAnalyser.getFloatFrequencyData(onsetDb);
 
-    const nyquist = tabAudioCtx.sampleRate * 0.5;
+    const nyquist = state.tabAudioCtx.sampleRate * 0.5;
 
-    const res = fileMode ? fileScheduleStep(nowMs) : harmonyTracker.process(onsetDb, nowMs, changeSensitivity, minChangeGapMs);
+    const res = fileMode ? fileScheduleStep(nowMs) : harmonyTracker.process(onsetDb, nowMs, state.changeSensitivity, state.minChangeGapMs);
 
     const meterRatio = Math.min(1.0, res.onset / (res.threshold * 1.55));
-    meterHold = Math.max(meterRatio, meterHold * 0.82);
-    energyBarFill.style.width = `${(meterHold * 100).toFixed(1)}%`;
+    state.meterHold = Math.max(meterRatio, state.meterHold * 0.82);
+    energyBarFill.style.width = `${(state.meterHold * 100).toFixed(1)}%`;
     thresholdMarker.style.left = `${((1 / 1.55) * 100).toFixed(1)}%`;
 
-    if (res.label !== lastChordShown) {
-        lastChordShown = res.label;
+    if (res.label !== state.lastChordShown) {
+        state.lastChordShown = res.label;
         chordReadout.textContent = res.label;
     }
 
     const selectedPeaks = extractTopPeaks(nyquist, binCount);
 
     if (res.change) {
-        changeCounter = (changeCounter % changesPerForm) + 1;
-        const shouldChangeForm = (changeCounter === 1);
-        changeCountBadge.textContent = `${changeCounter}/${changesPerForm}`;
+        state.changeCounter = (state.changeCounter % state.changesPerForm) + 1;
+        const shouldChangeForm = (state.changeCounter === 1);
+        changeCountBadge.textContent = `${state.changeCounter}/${state.changesPerForm}`;
 
         flashFormChange(shouldChangeForm);
         joltParticles(0.03 + 0.05 * Math.max(0, Math.min(1, res.change.strength - 1)));
 
-        if (audioSyncMode === 'locked' && shouldChangeForm) {
+        if (state.audioSyncMode === 'locked' && shouldChangeForm) {
             if (fileMode && res.change.event) lockFormFromPeaks(res.change.event.peaks, true);
             else pendingSnapshotAt = nowMs + SNAPSHOT_DELAY_MS;
         }
@@ -168,17 +170,17 @@ function processTabAudioSpectrum(nowMs) {
 
     if (pendingSnapshotAt > 0 && nowMs >= pendingSnapshotAt) {
         pendingSnapshotAt = 0;
-        if (audioSyncMode === 'locked' && selectedPeaks.length > 0) {
+        if (state.audioSyncMode === 'locked' && selectedPeaks.length > 0) {
             lockFormFromSpectrum(selectedPeaks, nyquist, binCount, true);
         }
-    } else if (!fileMode && audioSyncMode === 'locked' && lockedAudioPeaks.length === 0 && selectedPeaks.length > 0) {
+    } else if (!fileMode && state.audioSyncMode === 'locked' && state.lockedAudioPeaks.length === 0 && selectedPeaks.length > 0) {
         lockFormFromSpectrum(selectedPeaks, nyquist, binCount, false);
     }
 
     updateContinuousSlots(selectedPeaks, nyquist, binCount);
 
     uiFrameCount++;
-    if (uiFrameCount % 10 === 0 && audioSyncMode === 'continuous') {
+    if (uiFrameCount % 10 === 0 && state.audioSyncMode === 'continuous') {
         updateDisplay();
     }
 }
@@ -187,7 +189,7 @@ const btnTabAudio = document.getElementById('btnTabAudio');
 
 btnTabAudio.addEventListener('click', async () => {
     if (fileMode) stopFileAudio();
-    if (isListeningToTab) {
+    if (state.isListeningToTab) {
         stopTabAudio();
         return;
     }
@@ -211,38 +213,38 @@ btnTabAudio.addEventListener('click', async () => {
         }
         tabStream = stream;
 
-        tabAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const source = tabAudioCtx.createMediaStreamSource(stream);
-        tabAnalyser = tabAudioCtx.createAnalyser();
-        tabAnalyser.fftSize = 4096;
-        tabAnalyser.smoothingTimeConstant = 0.55;
-        source.connect(tabAnalyser);
+        state.tabAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const source = state.tabAudioCtx.createMediaStreamSource(stream);
+        state.tabAnalyser = state.tabAudioCtx.createAnalyser();
+        state.tabAnalyser.fftSize = 4096;
+        state.tabAnalyser.smoothingTimeConstant = 0.55;
+        source.connect(state.tabAnalyser);
 
         // The tab is muted here, so this path is the only sound the user hears.
         // Analysis stays on the dry signal.
         if (canFx) {
-            const chain = fxCreate(tabAudioCtx);
+            const chain = fxCreate(state.tabAudioCtx);
             source.connect(chain.input);
-            chain.output.connect(tabAudioCtx.destination);
+            chain.output.connect(state.tabAudioCtx.destination);
         }
 
-        onsetAnalyser = tabAudioCtx.createAnalyser();
+        onsetAnalyser = state.tabAudioCtx.createAnalyser();
         onsetAnalyser.fftSize = 8192;
         onsetAnalyser.smoothingTimeConstant = 0.4;
         source.connect(onsetAnalyser);
         onsetDb = new Float32Array(onsetAnalyser.frequencyBinCount);
 
-        harmonyTracker = new HarmonyChangeTracker(tabAudioCtx.sampleRate, onsetAnalyser.frequencyBinCount);
+        harmonyTracker = new HarmonyChangeTracker(state.tabAudioCtx.sampleRate, onsetAnalyser.frequencyBinCount);
         pendingSnapshotAt = 0;
-        meterHold = 0;
-        lastChordShown = null;
+        state.meterHold = 0;
+        state.lastChordShown = null;
         chordReadout.textContent = '--';
-        lockedAudioPeaks = [];
-        changeCounter = 0;
+        state.lockedAudioPeaks = [];
+        state.changeCounter = 0;
 
-        isListeningToTab = true;
+        state.isListeningToTab = true;
         canvasChangeBadge.classList.remove('hidden');
-        if (audioSyncMode === 'locked') formLockStatus.classList.remove('hidden');
+        if (state.audioSyncMode === 'locked') formLockStatus.classList.remove('hidden');
 
         btnTabAudio.innerText = "Stop Listening";
         btnTabAudio.classList.add('live');
@@ -257,16 +259,16 @@ btnTabAudio.addEventListener('click', async () => {
     }
 });
 
-function stopTabAudio() {
-    isListeningToTab = false;
+export function stopTabAudio() {
+    state.isListeningToTab = false;
     if (tabStream) tabStream.getTracks().forEach(t => t.stop());
-    if (tabAudioCtx) tabAudioCtx.close();
+    if (state.tabAudioCtx) state.tabAudioCtx.close();
     audioPeakSlots.length = 0;
-    lockedAudioPeaks.length = 0;
+    state.lockedAudioPeaks.length = 0;
     harmonyTracker = null;
     onsetAnalyser = null;
     pendingSnapshotAt = 0;
-    meterHold = 0;
+    state.meterHold = 0;
     energyBarFill.style.width = '0%';
     chordReadout.textContent = '--';
     canvasChangeBadge.classList.add('hidden');

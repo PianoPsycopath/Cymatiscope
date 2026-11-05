@@ -1,3 +1,5 @@
+import { fxHpHz, fxLpHz, fxParams } from './fx-chain.js';
+
 const FX_VIS_REV_GAIN = 2.5;
 const FX_VIS_ECHO_GAIN = 2.5;
 const FX_GHOST_MAX = 6;
@@ -14,11 +16,11 @@ function fxVisActive() {
     return fxParams.enabled && fxParams.plate;
 }
 
-function fxVisSoft() {
+export function fxVisSoft() {
     return fxVisActive() ? Math.min(1, (fxParams.revMix / 100) * (fxParams.wet / 100)) : 0;
 }
 
-function fxFilterModes(modes) {
+export function fxFilterModes(modes) {
     if (!fxVisActive()) return;
     const lpHz = fxLpHz(fxParams.lp);
     const hpHz = fxHpHz(fxParams.hp);
@@ -44,7 +46,7 @@ function fxCopyMode(m, weight, ghost) {
 }
 
 // Ghost modes stay out of the harmony analysis. They must not show as notes.
-function fxGhostModes(modes, now) {
+export function fxGhostModes(modes, now) {
     const ghosts = [];
     if (!fxVisActive()) {
         fxTails.clear();

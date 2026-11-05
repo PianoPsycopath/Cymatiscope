@@ -1,3 +1,29 @@
+import * as THREE from 'three';
+import { canvas, DISPLAY_SIZE, state } from './config.js';
+import {
+    createVolumeSet,
+    extractVolumeSurface,
+    MAIN_VOLUME,
+    surfCX,
+    surfCY,
+    surfCZ,
+    surfLineCount,
+    surfLineIdx,
+    surfPos,
+    surfTriCount,
+    surfTriIdx,
+    surfVertCount,
+    useVolumeDomain,
+    VOL_CELLS,
+    VOL_N,
+    VOL_N2,
+    VOL_TORUS_A,
+    VOL_TORUS_R,
+} from './volume-field.js';
+import { NODAL_BASE, SCOPE_BG } from './render-buffers.js';
+import { fieldModeCount, plateFade } from './wave-field.js';
+import { smoothShare } from './nodal-renderer.js';
+
 const SHAPE3D_SETTINGS = { auto: true, locked: false, skin: false, cut: 0 };
 const shape3dInstances = [];
 // All views share this buffer. They render one after the other.
@@ -6,16 +32,16 @@ const surfCol = new Float32Array(VOL_CELLS * 3);
 const SHAPE3D_ORANGE = 0xff7a1a;
 const SHAPE3D_GREEN = 0x3dff7a;
 const KIND_CUBE = 1, KIND_SPHERE = 2, KIND_CYLINDER = 3, KIND_TORUS = 4;
-const SHAPE3D_KINDS = { cube: KIND_CUBE, sphere: KIND_SPHERE, cylinder: KIND_CYLINDER, torus: KIND_TORUS };
+export const SHAPE3D_KINDS = { cube: KIND_CUBE, sphere: KIND_SPHERE, cylinder: KIND_CYLINDER, torus: KIND_TORUS };
 
 const CAM_HOME = { theta: 0.74, phi: 1.1, radius: 3.9 };
 
 const tintFlags = { gold: false, clash: false, partialGold: false, partialClash: false };
 function readTintFlags() {
-    tintFlags.gold = showGoldenHarmonics && goldLevel > 0.01 && goldModeCount > 0;
-    tintFlags.clash = showClashingHarmonics && clashLevel > 0.01 && clashModeCount > 0;
-    tintFlags.partialGold = tintFlags.gold && !goldAllModes;
-    tintFlags.partialClash = tintFlags.clash && !clashAllModes;
+    tintFlags.gold = state.showGoldenHarmonics && state.goldLevel > 0.01 && state.goldModeCount > 0;
+    tintFlags.clash = state.showClashingHarmonics && state.clashLevel > 0.01 && state.clashModeCount > 0;
+    tintFlags.partialGold = tintFlags.gold && !state.goldAllModes;
+    tintFlags.partialClash = tintFlags.clash && !state.clashAllModes;
 }
 
 function gradientShare(buf, i, dx, dy, dz) {
@@ -27,8 +53,7 @@ function gradientShare(buf, i, dx, dy, dz) {
     return gm / (gm + Math.sqrt(rx * rx + ry * ry + rz * rz) + 1e-6);
 }
 
-function createShape3D(opts) {
-    if (typeof THREE === 'undefined') throw new Error('Three.js not loaded');
+export function createShape3D(opts) {
     const sandCount = opts.particles || 20000;
     const vol = opts.vol || createVolumeSet();
     let kind = 0;
@@ -265,7 +290,7 @@ function createShape3D(opts) {
     }
 
     function updateSurface(now, hasSound) {
-        const show = showNodalLines && hasSound;
+        const show = state.showNodalLines && hasSound;
         const skinOn = SHAPE3D_SETTINGS.skin;
         lineMesh.visible = show;
         fillMesh.visible = show && skinOn;
@@ -295,8 +320,8 @@ function createShape3D(opts) {
                 const phase = surfCX[k] + surfCY[k] + surfCZ[k];
 
                 let goldT = 0, clashT = 0;
-                if (useGold) goldT = smoothShare(partialGold ? gradientShare(vol.gold, cell, gx, gy, gz) : 1) * goldLevel;
-                if (useClash) clashT = smoothShare(partialClash ? gradientShare(vol.clash, cell, gx, gy, gz) : 1) * clashLevel;
+                if (useGold) goldT = smoothShare(partialGold ? gradientShare(vol.gold, cell, gx, gy, gz) : 1) * state.goldLevel;
+                if (useClash) clashT = smoothShare(partialClash ? gradientShare(vol.clash, cell, gx, gy, gz) : 1) * state.clashLevel;
 
                 if (clashT > goldT) {
                     if (clashT > 0.02) {
@@ -326,11 +351,11 @@ function createShape3D(opts) {
     }
 
     function updateSand(hasSound) {
-        sandPoints.visible = showParticles;
-        if (!showParticles) return;
+        sandPoints.visible = state.showParticles;
+        if (!state.showParticles) return;
 
         const amp = vol.amp;
-        const speedMult = globalSpeedMultiplier;
+        const speedMult = state.globalSpeedMultiplier;
         const gridScale = (VOL_N - 3) * 0.5;
         const gridMax = VOL_N - 2;
         readTintFlags();
@@ -368,8 +393,8 @@ function createShape3D(opts) {
 
                 if (tint) {
                     let goldT = 0, clashT = 0;
-                    if (useGold) goldT = smoothShare(partialGold ? gradientShare(vol.gold, cell, dfx, dfy, dfz) : 1) * goldLevel;
-                    if (useClash) clashT = smoothShare(partialClash ? gradientShare(vol.clash, cell, dfx, dfy, dfz) : 1) * clashLevel;
+                    if (useGold) goldT = smoothShare(partialGold ? gradientShare(vol.gold, cell, dfx, dfy, dfz) : 1) * state.goldLevel;
+                    if (useClash) clashT = smoothShare(partialClash ? gradientShare(vol.clash, cell, dfx, dfy, dfz) : 1) * state.clashLevel;
                     if (clashT > goldT) {
                         if (clashT > 0.02) { r += (1 - r) * clashT; g += (0.25 - g) * clashT; b += (0.3 - b) * clashT; }
                     } else if (goldT > 0.02) {
@@ -483,10 +508,10 @@ function createShape3D(opts) {
 let mainShape3D = null;
 let shape3dFailed = false;
 
-function setShape3D(name) {
+export function setShape3D(name) {
     const screenEl = canvas.parentNode;
     if (!name) {
-        shape3d = null;
+        state.shape3d = null;
         screenEl.classList.remove('mode-3d');
         return true;
     }
@@ -502,20 +527,20 @@ function setShape3D(name) {
     }
     if (!mainShape3D) return false;
     mainShape3D.setName(name);
-    shape3d = name;
+    state.shape3d = name;
     screenEl.classList.add('mode-3d');
     mainShape3D.resize();
     return true;
 }
 
-function renderShape3D(now) { if (mainShape3D && shape3d) mainShape3D.render(now); }
-function joltShape3D(strength) { if (mainShape3D) mainShape3D.jolt(strength); }
-function setShape3DAutoOrbit(on) { SHAPE3D_SETTINGS.auto = !!on; }
-function setShape3DLock(on) {
+export function renderShape3D(now) { if (mainShape3D && state.shape3d) mainShape3D.render(now); }
+export function joltShape3D(strength) { if (mainShape3D) mainShape3D.jolt(strength); }
+export function setShape3DAutoOrbit(on) { SHAPE3D_SETTINGS.auto = !!on; }
+export function setShape3DLock(on) {
     SHAPE3D_SETTINGS.locked = !!on;
     for (let i = 0; i < shape3dInstances.length; i++) shape3dInstances[i].applyLock();
 }
-function setShape3DSkin(on) { SHAPE3D_SETTINGS.skin = !!on; }
-function setShape3DCutaway(t) { SHAPE3D_SETTINGS.cut = Math.max(0, Math.min(1, t)); }
-function setShape3DLattice(level) { surfLineStride = Math.max(1, Math.min(3, level | 0)); }
-function resizeShape3D() { for (let i = 0; i < shape3dInstances.length; i++) shape3dInstances[i].resize(); }
+export function setShape3DSkin(on) { SHAPE3D_SETTINGS.skin = !!on; }
+export function setShape3DCutaway(t) { SHAPE3D_SETTINGS.cut = Math.max(0, Math.min(1, t)); }
+export function setShape3DLattice(level) { state.surfLineStride = Math.max(1, Math.min(3, level | 0)); }
+export function resizeShape3D() { for (let i = 0; i < shape3dInstances.length; i++) shape3dInstances[i].resize(); }

@@ -1,3 +1,8 @@
+import Soundfont from 'soundfont-player';
+import { activeKeysMap, state } from './config.js';
+import { updateDisplay } from './ui-piano.js';
+import { fxCreate } from './fx-chain.js';
+
 const SC_GAIN_SCALE = 3;
 const SC_MIN_NOTE_SEC = 0.06;
 const SC_SOUNDFONT = 'FluidR3_GM';
@@ -9,8 +14,8 @@ const SC_NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#
 
 const SC_GM = ['acoustic_grand_piano', 'bright_acoustic_piano', 'electric_grand_piano', 'honkytonk_piano', 'electric_piano_1', 'electric_piano_2', 'harpsichord', 'clavinet', 'celesta', 'glockenspiel', 'music_box', 'vibraphone', 'marimba', 'xylophone', 'tubular_bells', 'dulcimer', 'drawbar_organ', 'percussive_organ', 'rock_organ', 'church_organ', 'reed_organ', 'accordion', 'harmonica', 'tango_accordion', 'acoustic_guitar_nylon', 'acoustic_guitar_steel', 'electric_guitar_jazz', 'electric_guitar_clean', 'electric_guitar_muted', 'overdriven_guitar', 'distortion_guitar', 'guitar_harmonics', 'acoustic_bass', 'electric_bass_finger', 'electric_bass_pick', 'fretless_bass', 'slap_bass_1', 'slap_bass_2', 'synth_bass_1', 'synth_bass_2', 'violin', 'viola', 'cello', 'contrabass', 'tremolo_strings', 'pizzicato_strings', 'orchestral_harp', 'timpani', 'string_ensemble_1', 'string_ensemble_2', 'synth_strings_1', 'synth_strings_2', 'choir_aahs', 'voice_oohs', 'synth_choir', 'orchestra_hit', 'trumpet', 'trombone', 'tuba', 'muted_trumpet', 'french_horn', 'brass_section', 'synth_brass_1', 'synth_brass_2', 'soprano_sax', 'alto_sax', 'tenor_sax', 'baritone_sax', 'oboe', 'english_horn', 'bassoon', 'clarinet', 'piccolo', 'flute', 'recorder', 'pan_flute', 'blown_bottle', 'shakuhachi', 'whistle', 'ocarina', 'lead_1_square', 'lead_2_sawtooth', 'lead_3_calliope', 'lead_4_chiff', 'lead_5_charang', 'lead_6_voice', 'lead_7_fifths', 'lead_8_bass__lead', 'pad_1_new_age', 'pad_2_warm', 'pad_3_polysynth', 'pad_4_choir', 'pad_5_bowed', 'pad_6_metallic', 'pad_7_halo', 'pad_8_sweep', 'fx_1_rain', 'fx_2_soundtrack', 'fx_3_crystal', 'fx_4_atmosphere', 'fx_5_brightness', 'fx_6_goblins', 'fx_7_echoes', 'fx_8_scifi', 'sitar', 'banjo', 'shamisen', 'koto', 'kalimba', 'bagpipe', 'fiddle', 'shanai', 'tinkle_bell', 'agogo', 'steel_drums', 'woodblock', 'taiko_drum', 'melodic_tom', 'synth_drum', 'reverse_cymbal', 'guitar_fret_noise', 'breath_noise', 'seashore', 'bird_tweet', 'telephone_ring', 'helicopter', 'applause', 'gunshot'];
 
-let scoreAnalyser = null;
-let scoreMelodyMidi = -1;
+export let scoreAnalyser = null;
+export let scoreMelodyMidi = -1;
 
 const scFileInput = document.getElementById('scoreFileInput');
 const scStatusEl = document.getElementById('scoreStatus');
@@ -288,8 +293,8 @@ function scLiveProgram() {
 
 function scLoadProgram(prog) {
     if (sc.instruments.has(prog)) return Promise.resolve(true);
-    // The soundfont script can fail to load. Notes then use sine voices.
-    if (sc.failed.has(prog) || typeof Soundfont === 'undefined') return Promise.resolve(false);
+    // A failed load is not tried again. Notes use sine voices.
+    if (sc.failed.has(prog)) return Promise.resolve(false);
     if (sc.loading.has(prog)) return sc.loading.get(prog);
     scEnsureAudio();
     const pr = Soundfont.instrument(sc.ctx, SC_GM[prog], { soundfont: SC_SOUNDFONT, format: 'mp3', destination: sc.master })
@@ -359,7 +364,7 @@ function scStartVoice(prog, midi, vel, when, dur) {
         const node = inst.play(midi, when, opts);
         return { stop(t) { if (node && node.stop) node.stop(t); } };
     }
-    if (typeof Soundfont !== 'undefined' && !sc.failed.has(prog)) scLoadProgram(prog);
+    if (!sc.failed.has(prog)) scLoadProgram(prog);
     return scSine(midi, vel, when, dur);
 }
 
@@ -436,9 +441,9 @@ function scSeek(sec) {
     if (wasPlaying) scPlay();
 }
 
-function updateScore(now) {
+export function updateScore(now) {
     if (sc.ctx) {
-        const g = synthVolume * SC_GAIN_SCALE;
+        const g = state.synthVolume * SC_GAIN_SCALE;
         if (g !== sc.lastGain) { sc.lastGain = g; sc.master.gain.setTargetAtTime(g, sc.ctx.currentTime, 0.02); }
     }
 

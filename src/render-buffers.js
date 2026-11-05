@@ -1,16 +1,18 @@
+import { DISPLAY_SIZE, FIELD_SIZE } from './config.js';
+
 const isLittleEndian = new Uint8Array(new Uint32Array([0x11223344]).buffer)[0] === 0x44;
-function packRGBA(r, g, b, a) {
+export function packRGBA(r, g, b, a) {
     return isLittleEndian
         ? ((a << 24) | (b << 16) | (g << 8) | r) >>> 0
         : ((r << 24) | (g << 16) | (b << 8) | a) >>> 0;
 }
 
-const SCOPE_BG = '#020a05';
-const SCOPE_BG_RGB = '2, 10, 5';
-const NODAL_BASE = { r: 70, g: 255, b: 130 };
+export const SCOPE_BG = '#020a05';
+export const SCOPE_BG_RGB = '2, 10, 5';
+export const NODAL_BASE = { r: 70, g: 255, b: 130 };
 
-const nodalColorLUT = new Uint32Array(256);
-const particleColorLUT = new Uint32Array(256);
+export const nodalColorLUT = new Uint32Array(256);
+export const particleColorLUT = new Uint32Array(256);
 for (let a = 0; a < 256; a++) {
     nodalColorLUT[a] = packRGBA(NODAL_BASE.r, NODAL_BASE.g, NODAL_BASE.b, a);
     particleColorLUT[a] = packRGBA(205, 255, 220, a);
@@ -25,7 +27,7 @@ function createLayer(size) {
     return { canvas, ctx, imageData, pixels32: new Uint32Array(imageData.data.buffer) };
 }
 
-function createPlateBuffers() {
+export function createPlateBuffers() {
     const nodal = createLayer(FIELD_SIZE);
     const gold = createLayer(FIELD_SIZE);
     const clash = createLayer(FIELD_SIZE);
@@ -47,9 +49,9 @@ function createPlateBuffers() {
     };
 }
 
-const MAIN_PLATE = createPlateBuffers();
-let nodalCanvas, nodalCtx, nodalImageData, nodalPixels32, goldCanvas, goldCtx, goldImageData, goldPixels32, clashCanvas, clashCtx, clashImageData, clashPixels32, particleStampCanvas, particleStampCtx, particleImageData, particlePixels32, trailCanvas, trailCtx;
-function bindPlateBuffers(b) {
+export const MAIN_PLATE = createPlateBuffers();
+export let nodalCanvas, nodalCtx, nodalImageData, nodalPixels32, goldCanvas, goldCtx, goldImageData, goldPixels32, clashCanvas, clashCtx, clashImageData, clashPixels32, particleStampCanvas, particleStampCtx, particleImageData, particlePixels32, trailCanvas, trailCtx;
+export function bindPlateBuffers(b) {
     nodalCanvas = b.nodalCanvas;
     nodalCtx = b.nodalCtx;
     nodalImageData = b.nodalImageData;
@@ -71,7 +73,7 @@ function bindPlateBuffers(b) {
 }
 bindPlateBuffers(MAIN_PLATE);
 
-const graticuleCanvas = document.createElement('canvas');
+export const graticuleCanvas = document.createElement('canvas');
 graticuleCanvas.width = DISPLAY_SIZE;
 graticuleCanvas.height = DISPLAY_SIZE;
 (function buildGraticule() {

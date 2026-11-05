@@ -1,7 +1,40 @@
-function accumulateMode(mode, w, target) {
+import {
+    activeKeysMap,
+    activeWaveModes,
+    audioPeakSlots,
+    FIELD_CELLS,
+    FIELD_SIZE,
+    R_BINS,
+    state,
+    THETA_BINS,
+} from './config.js';
+import {
+    ampField,
+    cellInsideCircle,
+    cellRIndex,
+    cellThetaIndex,
+    clashField,
+    cosM,
+    cosMR,
+    cosN,
+    cosNTheta,
+    goldField,
+    normCoord,
+} from './lookup-tables.js';
+import { accumulateModeVolume, ampVol, clashVol, goldVol } from './volume-field.js';
+import {
+    analyzeHarmony,
+    GOLD_MIN,
+    setHarmonyReadout,
+    updateClashLevel,
+    updateGoldLevel,
+} from './harmony-analysis.js';
+import { fxFilterModes, fxGhostModes } from './fx-plate.js';
+
+export function accumulateMode(mode, w, target) {
     const pi = Math.PI;
 
-    if (plateShape === 'square') {
+    if (state.plateShape === 'square') {
         // Use two cosine tables for each note. This is faster than one cosine for each cell.
         const mPi = mode.m * pi;
         const nPi = mode.n * pi;
@@ -38,8 +71,8 @@ function accumulateMode(mode, w, target) {
     }
 }
 
-let plateFade = 1;
-let fieldModeCount = 0;
+export let plateFade = 1;
+export let fieldModeCount = 0;
 const NO_GHOSTS = [];
 const NO_HARMONY = { maxStrength: 0, maxClash: 0, labels: [], clashLabels: [] };
 const waveFrame = { modeCount: 0, fieldCount: 0, ghosts: NO_GHOSTS, invTotalWeight: 0 };
@@ -55,35 +88,35 @@ function makeMode(freq, weight, audio) {
     };
 }
 
-function prepareWaveModes() {
+export function prepareWaveModes() {
     activeWaveModes.length = 0;
-    totalWaveWeight = 0;
+    state.totalWaveWeight = 0;
 
     for (const item of activeKeysMap.values()) {
         activeWaveModes.push(makeMode(item.freq, 1.0));
-        totalWaveWeight += 1.0;
+        state.totalWaveWeight += 1.0;
     }
 
-    if (isListeningToTab) {
-        if (audioSyncMode === 'locked') {
-            for (let i = 0; i < lockedAudioPeaks.length; i++) {
-                const mode = lockedAudioPeaks[i];
+    if (state.isListeningToTab) {
+        if (state.audioSyncMode === 'locked') {
+            for (let i = 0; i < state.lockedAudioPeaks.length; i++) {
+                const mode = state.lockedAudioPeaks[i];
                 mode.audio = true;
                 activeWaveModes.push(mode);
-                totalWaveWeight += mode.weight;
+                state.totalWaveWeight += mode.weight;
             }
         } else {
             for (let i = 0; i < audioPeakSlots.length; i++) {
                 const slot = audioPeakSlots[i];
                 activeWaveModes.push(makeMode(slot.freq, slot.weight, true));
-                totalWaveWeight += slot.weight;
+                state.totalWaveWeight += slot.weight;
             }
         }
     }
 
     fxFilterModes(activeWaveModes);
-    totalWaveWeight = 0;
-    for (let i = 0; i < activeWaveModes.length; i++) totalWaveWeight += activeWaveModes[i].weight;
+    state.totalWaveWeight = 0;
+    for (let i = 0; i < activeWaveModes.length; i++) state.totalWaveWeight += activeWaveModes[i].weight;
     const ghosts = fxGhostModes(activeWaveModes, performance.now());
     let ghostWeight = 0;
     for (let i = 0; i < ghosts.length; i++) ghostWeight += ghosts[i].weight;
@@ -96,10 +129,10 @@ function prepareWaveModes() {
     waveFrame.ghosts = ghosts;
 
     if (fieldCount === 0) {
-        goldModeCount = 0;
-        goldAllModes = false;
-        clashModeCount = 0;
-        clashAllModes = false;
+        state.goldModeCount = 0;
+        state.goldAllModes = false;
+        state.clashModeCount = 0;
+        state.clashAllModes = false;
         updateGoldLevel(0);
         updateClashLevel(0);
         setHarmonyReadout(null, null);
@@ -108,25 +141,25 @@ function prepareWaveModes() {
 
     // When only ghosts are left, the plate fades out with them.
     plateFade = modeCount > 0 ? 1 : Math.min(1, ghostWeight);
-    waveFrame.invTotalWeight = plateFade / (totalWaveWeight + ghostWeight);
+    waveFrame.invTotalWeight = plateFade / (state.totalWaveWeight + ghostWeight);
     const harmony = modeCount > 0 ? analyzeHarmony(activeWaveModes) : NO_HARMONY;
 
-    goldModeCount = 0;
-    clashModeCount = 0;
+    state.goldModeCount = 0;
+    state.clashModeCount = 0;
     for (let i = 0; i < modeCount; i++) {
         const mode = activeWaveModes[i];
-        if (mode.gold > GOLD_MIN) goldModeCount++;
-        if (mode.clash > GOLD_MIN) clashModeCount++;
+        if (mode.gold > GOLD_MIN) state.goldModeCount++;
+        if (mode.clash > GOLD_MIN) state.clashModeCount++;
     }
-    goldAllModes = goldModeCount === fieldCount;
-    clashAllModes = clashModeCount === fieldCount;
+    state.goldAllModes = state.goldModeCount === fieldCount;
+    state.clashAllModes = state.clashModeCount === fieldCount;
 
     updateGoldLevel(harmony.maxStrength);
     updateClashLevel(harmony.maxClash);
     setHarmonyReadout(harmony.labels, harmony.clashLabels);
 }
 
-function accumulateWaveField(F, G, C, acc) {
+export function accumulateWaveField(F, G, C, acc) {
     F.fill(0);
     if (waveFrame.fieldCount === 0) return;
 
@@ -142,16 +175,16 @@ function accumulateWaveField(F, G, C, acc) {
         acc(ghosts[i], ghosts[i].weight * invTotalWeight, F);
     }
 
-    if (!showNodalLines) return;
+    if (!state.showNodalLines) return;
 
-    if (showGoldenHarmonics && goldModeCount > 0 && !goldAllModes) {
+    if (state.showGoldenHarmonics && state.goldModeCount > 0 && !state.goldAllModes) {
         G.fill(0);
         for (let i = 0; i < modeCount; i++) {
             const mode = activeWaveModes[i];
             if (mode.gold > GOLD_MIN) acc(mode, mode.weight * invTotalWeight, G);
         }
     }
-    if (showClashingHarmonics && clashModeCount > 0 && !clashAllModes) {
+    if (state.showClashingHarmonics && state.clashModeCount > 0 && !state.clashAllModes) {
         C.fill(0);
         for (let i = 0; i < modeCount; i++) {
             const mode = activeWaveModes[i];
@@ -160,8 +193,8 @@ function accumulateWaveField(F, G, C, acc) {
     }
 }
 
-function computeWaveField() {
+export function computeWaveField() {
     prepareWaveModes();
-    if (shape3d !== null) accumulateWaveField(ampVol, goldVol, clashVol, accumulateModeVolume);
+    if (state.shape3d !== null) accumulateWaveField(ampVol, goldVol, clashVol, accumulateModeVolume);
     else accumulateWaveField(ampField, goldField, clashField, accumulateMode);
 }

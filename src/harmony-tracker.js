@@ -34,7 +34,7 @@ function hcDetectChord(chroma) {
     return bestName;
 }
 
-class HarmonyChangeTracker {
+export class HarmonyChangeTracker {
     constructor(sampleRate, binCount) {
         this.binHz = (sampleRate * 0.5) / binCount;
         this.lo = Math.max(2, Math.floor(80 / this.binHz));

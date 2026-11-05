@@ -1,3 +1,6 @@
+import { activeKeysMap, activeWaveModes, state } from './config.js';
+import { scoreMelodyMidi } from './score-input.js';
+
 const TN_NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
 const TN_MAJOR = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88];
@@ -81,7 +84,7 @@ function tnEstimateKey() {
 function tnReadMelody() {
     if (scoreMelodyMidi >= 0) return ((scoreMelodyMidi % 12) + 12) % 12;
     let freq = 0;
-    if (!isListeningToTab && activeKeysMap.size > 0) {
+    if (!state.isListeningToTab && activeKeysMap.size > 0) {
         for (const item of activeKeysMap.values()) freq = item.freq;
     } else {
         let best = 0;
@@ -154,7 +157,7 @@ function tnDrawGraph() {
     g.stroke();
 }
 
-function updateTension(now) {
+export function updateTension(now) {
     const melody = (activeKeysMap.size > 0 || activeWaveModes.length > 0) ? tnReadMelody() : -1;
 
     if (melody < 0) {

@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CYMATISCOPE</title>
-    <link rel="stylesheet" href="css/styles.css">
-    <link rel="stylesheet" href="css/dials.css">
+    <title>Polyphonic Chladni Simulation</title>
+    <link rel="stylesheet" href="/src/css/styles.css">
+    <link rel="stylesheet" href="/src/css/dials.css">
 </head>
 <body>
 
     <div class="app">
 
         <header class="hdr">
-            <div class="hdr-id">CYMATISCOPE<span>-01</span></div>
+            <div class="hdr-id">CHLADNI<span>-01</span></div>
             <div class="hdr-mid">
                 <div class="hdr-title">Polyphonic Chladni Synthesizer <span class="jp">共鳴解析</span></div>
                 <div class="hdr-sub">Cymatics resonance unit</div>
@@ -360,32 +360,6 @@
         </section>
     </div>
 
-    <!-- Use plain scripts. The page then works from a file. Load main.js last: it starts the loop. -->
-    <script src="js/synth.js"></script>
-    <script src="js/config.js"></script>
-    <script src="js/lookup-tables.js"></script>
-    <script src="js/volume-field.js"></script>
-    <script src="js/render-buffers.js"></script>
-    <script src="js/particles.js"></script>
-    <script src="js/harmony-analysis.js"></script>
-    <script src="js/wave-field.js"></script>
-    <script src="js/nodal-renderer.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="js/shape-3d.js"></script>
-    <script src="js/harmony-tracker.js"></script>
-    <script src="js/file-analysis.js"></script>
-    <script src="js/live-audio.js"></script>
-    <script src="js/music-file.js"></script>
-    <script src="js/ui-piano.js"></script>
-    <script src="js/ui-controls.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/soundfont-player@0.12.0/dist/soundfont-player.min.js"></script>
-    <script src="js/fx-chain.js"></script>
-    <script src="js/dials.js"></script>
-    <script src="js/fx-plate.js"></script>
-    <script src="js/score-input.js"></script>
-    <script src="js/spectrum-graph.js"></script>
-    <script src="js/tension-meter.js"></script>
-    <script src="js/multi-view.js"></script>
-    <script src="js/main.js"></script>
+    <script type="module" src="/src/main.js"></script>
 </body>
 </html>

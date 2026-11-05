@@ -1,3 +1,24 @@
+import { DISPLAY_SIZE, NUM_PARTICLES, state } from './config.js';
+import {
+    ampField,
+    bindFieldSet,
+    clashField,
+    createFieldSet,
+    goldField,
+    MAIN_FIELDS,
+} from './lookup-tables.js';
+import { accumulateModeVolume, useVolumeDomain } from './volume-field.js';
+import { bindPlateBuffers, createPlateBuffers, MAIN_PLATE } from './render-buffers.js';
+import {
+    bindParticleSet,
+    createParticleSet,
+    joltBoundParticles,
+    MAIN_PARTICLES,
+} from './particles.js';
+import { accumulateMode, accumulateWaveField } from './wave-field.js';
+import { createShape3D, SHAPE3D_KINDS } from './shape-3d.js';
+import { drawPlate2D } from './plate-view.js';
+
 const MULTI_LAYOUTS = {
     single: { label: 'SINGLE',  key: '1', views: null },
     pair:   { label: '2D PAIR', key: '2', cols: 2, rows: 1, views: ['square', 'circle'] },
@@ -17,7 +38,7 @@ let mvViews = [];
 const mvPool = {};
 let mvGrid = null, mvBar = null, mvFlashEl = null, mvPlayLabel = null, mvIdleTimer = 0, mvFlashTimer = 0;
 
-function multiViewActive() { return mvActive; }
+export function multiViewActive() { return mvActive; }
 function mvFullscreenElement() { return document.fullscreenElement || document.webkitFullscreenElement || null; }
 
 function createView2D(shape) {
@@ -39,13 +60,13 @@ function bindView2D(view) {
     bindPlateBuffers(view.plate);
     bindParticleSet(view.particles);
     bindFieldSet(view.fields);
-    plateShape = view.shape;
+    state.plateShape = view.shape;
 }
 function bindMainView2D(shape) {
     bindPlateBuffers(MAIN_PLATE);
     bindParticleSet(MAIN_PARTICLES);
     bindFieldSet(MAIN_FIELDS);
-    plateShape = shape;
+    state.plateShape = shape;
 }
 
 function mvGetPanel(kind) {
@@ -108,8 +129,8 @@ function mvSetLayout(id) {
     mvApplyLayout();
 }
 
-function renderMultiView(now) {
-    const savedShape = plateShape;
+export function renderMultiView(now) {
+    const savedShape = state.plateShape;
     for (let i = 0; i < mvViews.length; i++) {
         const p = mvViews[i];
         if (p.is3D) {
@@ -126,8 +147,8 @@ function renderMultiView(now) {
     bindMainView2D(savedShape);
 }
 
-function joltMultiView(strength) {
-    const savedShape = plateShape;
+export function joltMultiView(strength) {
+    const savedShape = state.plateShape;
     for (let i = 0; i < mvViews.length; i++) {
         const p = mvViews[i];
         if (p.is3D) p.inst.jolt(strength);

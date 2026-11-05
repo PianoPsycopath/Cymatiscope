@@ -1,4 +1,24 @@
-let fileMode = false;
+import { audioPeakSlots, state } from './config.js';
+import {
+    FILE_HOP,
+    FILE_N,
+    FILE_SR,
+    fileThr,
+    runHarmonyAnalysis,
+    transformMono,
+} from './file-analysis.js';
+import {
+    canvasChangeBadge,
+    chordReadout,
+    energyBarFill,
+    formLockStatus,
+    lockFormFromPeaks,
+    stopTabAudio,
+} from './live-audio.js';
+import { updateDisplay } from './ui-piano.js';
+import { fxCreate } from './fx-chain.js';
+
+export let fileMode = false;
 let fileAudioCtx = null;
 let fileAnalyserNode = null;
 let fileEvIdx = 0;
@@ -15,54 +35,54 @@ const musicProgress = document.getElementById('musicProgress');
 const musicProgressFill = document.getElementById('musicProgressFill');
 const btnCloseMusic = document.getElementById('btnCloseMusic');
 
-fileProgressCb = (frac) => {
+state.fileProgressCb = (frac) => {
     musicProgressFill.style.width = `${(frac * 100).toFixed(0)}%`;
 };
 
 function resyncFileEvents(posMs) {
     let idx = 0;
-    while (idx < fileEvents.length && fileEvents[idx].t * 1000 <= posMs) idx++;
+    while (idx < state.fileEvents.length && state.fileEvents[idx].t * 1000 <= posMs) idx++;
     fileEvIdx = idx;
-    changeCounter = 0;
+    state.changeCounter = 0;
     if (idx > 0) {
-        const prev = fileEvents[idx - 1];
+        const prev = state.fileEvents[idx - 1];
         fileLabel = prev.label;
-        if (audioSyncMode === 'locked') lockFormFromPeaks(prev.peaks, false);
+        if (state.audioSyncMode === 'locked') lockFormFromPeaks(prev.peaks, false);
     } else {
         fileLabel = '--';
-        lockedAudioPeaks = [];
+        state.lockedAudioPeaks = [];
         updateDisplay();
     }
     fileLastPos = posMs;
 }
 
-function fileScheduleStep(nowMs) {
+export function fileScheduleStep(nowMs) {
     const posMs = musicPlayer.currentTime * 1000 + fileSyncMs;
     if (posMs < fileLastPos - 50 || posMs > fileLastPos + 1000) resyncFileEvents(posMs);
     fileLastPos = posMs;
 
     let change = null;
-    while (fileEvIdx < fileEvents.length && fileEvents[fileEvIdx].t * 1000 <= posMs) {
-        const ev = fileEvents[fileEvIdx++];
+    while (fileEvIdx < state.fileEvents.length && state.fileEvents[fileEvIdx].t * 1000 <= posMs) {
+        const ev = state.fileEvents[fileEvIdx++];
         fileLabel = ev.label;
         change = { strength: 1.6, event: ev };
     }
 
     let frame = Math.floor(((posMs / 1000) * FILE_SR - FILE_N / 2) / FILE_HOP);
-    frame = Math.max(0, Math.min(fileFrames - 1, frame));
-    const onset = fileDists ? fileDists[frame] : 0;
+    frame = Math.max(0, Math.min(state.fileFrames - 1, frame));
+    const onset = state.fileDists ? state.fileDists[frame] : 0;
     return { change, onset, threshold: fileThr, label: fileLabel };
 }
 
 function setMusicStatus() {
     const dur = isFinite(musicPlayer.duration) ? ` · ${Math.floor(musicPlayer.duration / 60)}:${String(Math.floor(musicPlayer.duration % 60)).padStart(2, '0')}` : '';
-    musicStatus.textContent = `${fileName}${dur} · ${fileEvents.length} harmony changes found`;
+    musicStatus.textContent = `${fileName}${dur} · ${state.fileEvents.length} harmony changes found`;
     musicStatus.className = 'status-line ok';
 }
 
 function enterFileMode() {
-    if (!fileSpectra || fileMode) return;
-    if (isListeningToTab) stopTabAudio();
+    if (!state.fileSpectra || fileMode) return;
+    if (state.isListeningToTab) stopTabAudio();
 
     if (!fileAudioCtx) {
         fileAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -77,27 +97,27 @@ function enterFileMode() {
     }
     if (fileAudioCtx.state === 'suspended') fileAudioCtx.resume();
 
-    tabAudioCtx = fileAudioCtx;
-    tabAnalyser = fileAnalyserNode;
+    state.tabAudioCtx = fileAudioCtx;
+    state.tabAnalyser = fileAnalyserNode;
     audioPeakSlots.length = 0;
-    lockedAudioPeaks = [];
-    changeCounter = 0;
-    meterHold = 0;
-    lastChordShown = null;
+    state.lockedAudioPeaks = [];
+    state.changeCounter = 0;
+    state.meterHold = 0;
+    state.lastChordShown = null;
     fileMode = true;
-    isListeningToTab = true;
+    state.isListeningToTab = true;
     resyncFileEvents(musicPlayer.currentTime * 1000 + fileSyncMs);
 
     canvasChangeBadge.classList.remove('hidden');
-    if (audioSyncMode === 'locked') formLockStatus.classList.remove('hidden');
+    if (state.audioSyncMode === 'locked') formLockStatus.classList.remove('hidden');
 }
 
-function stopFileAudio() {
+export function stopFileAudio() {
     if (!fileMode) return;
     musicPlayer.pause();
     fileMode = false;
-    isListeningToTab = false;
-    lockedAudioPeaks.length = 0;
+    state.isListeningToTab = false;
+    state.lockedAudioPeaks.length = 0;
     audioPeakSlots.length = 0;
     energyBarFill.style.width = '0%';
     chordReadout.textContent = '--';
@@ -112,10 +132,10 @@ function closeMusicFile() {
     musicPlayer.removeAttribute('src');
     musicPlayer.load();
     if (musicPlayer.dataset.url) { URL.revokeObjectURL(musicPlayer.dataset.url); delete musicPlayer.dataset.url; }
-    fileSpectra = null;
-    fileDists = null;
-    fileEvents = [];
-    fileFrames = 0;
+    state.fileSpectra = null;
+    state.fileDists = null;
+    state.fileEvents = [];
+    state.fileFrames = 0;
     musicPlayer.classList.add('hidden');
     btnCloseMusic.classList.add('hidden');
     musicProgress.classList.add('hidden');
@@ -126,14 +146,14 @@ function closeMusicFile() {
 async function loadMusicFile(file) {
     const token = ++fileLoadToken;
     if (fileMode) stopFileAudio();
-    else if (isListeningToTab) stopTabAudio();
+    else if (state.isListeningToTab) stopTabAudio();
     musicPlayer.pause();
 
     fileName = file.name;
     musicStatus.textContent = `Decoding ${file.name}...`;
     musicStatus.className = 'status-line busy';
     musicProgress.classList.remove('hidden');
-    fileProgressCb(0);
+    state.fileProgressCb(0);
 
     try {
         const ab = await file.arrayBuffer();
@@ -154,7 +174,7 @@ async function loadMusicFile(file) {
         const ok = await transformMono(mono, () => token !== fileLoadToken);
         if (!ok || token !== fileLoadToken) return;
 
-        runHarmonyAnalysis(changeSensitivity, minChangeGapMs);
+        runHarmonyAnalysis(state.changeSensitivity, state.minChangeGapMs);
 
         if (musicPlayer.dataset.url) URL.revokeObjectURL(musicPlayer.dataset.url);
         const url = URL.createObjectURL(file);
@@ -173,11 +193,11 @@ async function loadMusicFile(file) {
     }
 }
 
-function scheduleReanalysis() {
-    if (!fileSpectra) return;
+export function scheduleReanalysis() {
+    if (!state.fileSpectra) return;
     clearTimeout(reanalyzeTimer);
     reanalyzeTimer = setTimeout(() => {
-        runHarmonyAnalysis(changeSensitivity, minChangeGapMs);
+        runHarmonyAnalysis(state.changeSensitivity, state.minChangeGapMs);
         if (fileMode) resyncFileEvents(musicPlayer.currentTime * 1000 + fileSyncMs);
         setMusicStatus();
     }, 300);
@@ -191,7 +211,7 @@ document.getElementById('musicFileInput').addEventListener('change', (e) => {
 btnCloseMusic.addEventListener('click', closeMusicFile);
 musicPlayer.addEventListener('play', () => {
     if (fileAudioCtx && fileAudioCtx.state === 'suspended') fileAudioCtx.resume();
-    if (fileSpectra && !fileMode) enterFileMode();
+    if (state.fileSpectra && !fileMode) enterFileMode();
 });
 musicPlayer.addEventListener('seeked', () => {
     if (fileMode) resyncFileEvents(musicPlayer.currentTime * 1000 + fileSyncMs);

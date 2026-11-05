@@ -1,3 +1,5 @@
+import { state } from './config.js';
+
 // Equal-temperament fifths are about 2 cents off. Keep the window above this value.
 const KEY_TOL_CENTS = 7;
 // FFT peaks are not exact. Audio uses a wider window.
@@ -6,7 +8,7 @@ const SACRED_TOL_CENTS = 20;
 const SACRED_FREQS = [174, 285, 396, 417, 432, 528, 639, 741, 852, 963];
 const FIFTH_FRAC = Math.log2(3 / 2);
 const FOURTH_FRAC = Math.log2(4 / 3);
-const GOLD_MIN = 0.05;
+export const GOLD_MIN = 0.05;
 const harmonyStatusEl = document.getElementById('harmonyStatus');
 const clashStatusEl = document.getElementById('clashStatus');
 
@@ -25,7 +27,7 @@ const CLASH_INTERVALS = [
 const KEY_CLASH_WINDOW = 25;
 const AUDIO_CLASH_WINDOW = 55;
 
-function analyzeHarmony(modes) {
+export function analyzeHarmony(modes) {
     const n = modes.length;
     const logs = new Array(n);
     for (let i = 0; i < n; i++) {
@@ -102,25 +104,25 @@ function analyzeHarmony(modes) {
     };
 }
 
-function updateGoldLevel(target) {
-    goldLevel += (target - goldLevel) * (target > goldLevel ? 0.35 : 0.06);
-    if (goldLevel < 0.003) goldLevel = 0;
+export function updateGoldLevel(target) {
+    state.goldLevel += (target - state.goldLevel) * (target > state.goldLevel ? 0.35 : 0.06);
+    if (state.goldLevel < 0.003) state.goldLevel = 0;
 }
 
-function updateClashLevel(target) {
-    clashLevel += (target - clashLevel) * (target > clashLevel ? 0.4 : 0.08);
-    if (clashLevel < 0.003) clashLevel = 0;
+export function updateClashLevel(target) {
+    state.clashLevel += (target - state.clashLevel) * (target > state.clashLevel ? 0.4 : 0.08);
+    if (state.clashLevel < 0.003) state.clashLevel = 0;
 }
 
-function setHarmonyReadout(labels, clashLabels) {
-    const g = (showGoldenHarmonics && labels && labels.length) ? labels.join(' · ') : '';
-    const c = (showClashingHarmonics && clashLabels && clashLabels.length) ? clashLabels.join(' · ') : '';
+export function setHarmonyReadout(labels, clashLabels) {
+    const g = (state.showGoldenHarmonics && labels && labels.length) ? labels.join(' · ') : '';
+    const c = (state.showClashingHarmonics && clashLabels && clashLabels.length) ? clashLabels.join(' · ') : '';
     const key = g + '\u0001' + c;
-    if (key === lastHarmonyStr) return;
+    if (key === state.lastHarmonyStr) return;
     const now = performance.now();
-    if (now - lastHarmonyUpdate < 120) return;
-    lastHarmonyUpdate = now;
-    lastHarmonyStr = key;
+    if (now - state.lastHarmonyUpdate < 120) return;
+    state.lastHarmonyUpdate = now;
+    state.lastHarmonyStr = key;
 
     if (g) {
         harmonyStatusEl.textContent = '✦ ' + g;

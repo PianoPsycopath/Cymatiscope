@@ -1,4 +1,9 @@
-const fxParams = {
+import { masterGain } from './synth.js';
+import { state } from './config.js';
+import { fileMode } from './music-file.js';
+import { dialSync } from './dials.js';
+
+export const fxParams = {
     enabled: true,
     plate: true,
     wet: 100,
@@ -35,8 +40,8 @@ const FX_CONTROLS = [
     { id: 'fxHp',        key: 'hp',        fmt: v => fxHz(fxHpHz(v)) }
 ];
 
-function fxLpHz(v) { return 200 * Math.pow(100, v / 100); }
-function fxHpHz(v) { return 20 * Math.pow(100, v / 100); }
+export function fxLpHz(v) { return 200 * Math.pow(100, v / 100); }
+export function fxHpHz(v) { return 20 * Math.pow(100, v / 100); }
 function fxHz(f) { return f >= 1000 ? (f / 1000).toFixed(1) + 'k' : Math.round(f) + 'Hz'; }
 
 const fxChains = [];
@@ -46,7 +51,7 @@ let fxIrDamp = -1;
 let fxIrTimer = 0;
 let fxSwapping = false;
 let fxSynthHooked = null;
-let fxSynthTap = null;
+export let fxSynthTap = null;
 
 function fxMakeIR(ctx, seconds, damping) {
     const rate = ctx.sampleRate;
@@ -95,7 +100,7 @@ function fxRebuildIR(immediate) {
     fxIrTimer = setTimeout(swap, 140);
 }
 
-function fxCreate(ctx) {
+export function fxCreate(ctx) {
     const input = ctx.createGain();
     const output = ctx.createGain();
 
@@ -160,7 +165,7 @@ function fxApply() {
 }
 
 const fxStatusEl = document.getElementById('fxStatus');
-function fxStatus(text, cls) {
+export function fxStatus(text, cls) {
     fxStatusEl.textContent = text;
     fxStatusEl.className = 'status-line' + (cls ? ' ' + cls : '');
 }
@@ -185,14 +190,14 @@ function fxHookSynth() {
 setInterval(fxHookSynth, 400);
 
 const fxTabEl = document.getElementById('fxTab');
-function fxTabWanted() { return fxTabEl.checked; }
-function fxTabCanMute() {
+export function fxTabWanted() { return fxTabEl.checked; }
+export function fxTabCanMute() {
     const supported = navigator.mediaDevices && navigator.mediaDevices.getSupportedConstraints
         ? navigator.mediaDevices.getSupportedConstraints() : {};
     return !!supported.suppressLocalAudioPlayback;
 }
 fxTabEl.addEventListener('change', () => {
-    const capturing = isListeningToTab && !fileMode;
+    const capturing = state.isListeningToTab && !fileMode;
     if (capturing) fxStatus('Restart tab capture to apply', 'busy');
     else if (fxTabEl.checked && !fxTabCanMute()) fxStatus('This browser cannot mute tab audio: tab effects unavailable', 'busy');
     else fxStatus('');

@@ -1,3 +1,8 @@
+import { masterGain } from './synth.js';
+import { state } from './config.js';
+import { fxSynthTap } from './fx-chain.js';
+import { scoreAnalyser } from './score-input.js';
+
 const SG_FMIN = 30;
 const SG_FMAX = 12000;
 const SG_METER_W = 16;
@@ -170,15 +175,15 @@ function sgDrawMeter(g, now, rms) {
     g.textAlign = 'left';
 }
 
-function updateSpectrumGraph(now) {
+export function updateSpectrumGraph(now) {
     if (now - sgLast < SG_FRAME_MS) return;
     sgLast = now;
 
     sgCols.fill(0);
     let energy = 0;
 
-    if (isListeningToTab && tabAnalyser) {
-        const r = sgSample(sgBind('tab', tabAnalyser));
+    if (state.isListeningToTab && state.tabAnalyser) {
+        const r = sgSample(sgBind('tab', state.tabAnalyser));
         energy += r * r;
     }
     const synthAn = sgSynthAnalyser();

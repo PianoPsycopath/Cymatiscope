@@ -1,14 +1,12 @@
-const FILE_SR = 11025;
-const FILE_N = 2048;
-const FILE_HOP = 256;
+import { state } from './config.js';
+import { HarmonyChangeTracker } from './harmony-tracker.js';
+
+export const FILE_SR = 11025;
+export const FILE_N = 2048;
+export const FILE_HOP = 256;
 const FILE_BINS = 420;
 
-let fileSpectra = null;
-let fileFrames = 0;
-let fileDists = null;
-let fileThr = 0.2;
-let fileEvents = [];
-let fileProgressCb = () => {};
+export let fileThr = 0.2;
 
 const FFT_REV = new Uint16Array(FILE_N);
 const FFT_COS = new Float64Array(FILE_N / 2);
@@ -55,11 +53,11 @@ function fftInPlace(re, im) {
     }
 }
 
-async function transformMono(mono, isCancelled) {
+export async function transformMono(mono, isCancelled) {
     const n = mono.length;
-    fileFrames = Math.max(1, Math.floor((n - FILE_N) / FILE_HOP) + 1);
-    fileSpectra = new Float32Array(fileFrames * FILE_BINS);
-    for (let f = 0; f < fileFrames; f++) {
+    state.fileFrames = Math.max(1, Math.floor((n - FILE_N) / FILE_HOP) + 1);
+    state.fileSpectra = new Float32Array(state.fileFrames * FILE_BINS);
+    for (let f = 0; f < state.fileFrames; f++) {
         const s = f * FILE_HOP;
         for (let i = 0; i < FILE_N; i++) {
             const x = s + i < n ? mono[s + i] : 0;
@@ -70,15 +68,15 @@ async function transformMono(mono, isCancelled) {
         const o = f * FILE_BINS;
         for (let k = 0; k < FILE_BINS; k++) {
             const mag = Math.sqrt(fftRe[k] * fftRe[k] + fftIm[k] * fftIm[k]) / FILE_N;
-            fileSpectra[o + k] = 20 * Math.log10(mag + 1e-9);
+            state.fileSpectra[o + k] = 20 * Math.log10(mag + 1e-9);
         }
         if (f % 150 === 0) {
-            fileProgressCb(f / fileFrames);
+            state.fileProgressCb(f / state.fileFrames);
             await new Promise(r => setTimeout(r, 0));
             if (isCancelled()) return false;
         }
     }
-    fileProgressCb(1);
+    state.fileProgressCb(1);
     return true;
 }
 
@@ -108,24 +106,24 @@ function extractPeaksFromSpectrum(spec) {
     return out.map(p => ({ freq: p.freq, norm: Math.max(0.25, Math.min(1, (p.db + 73.9) / 42.55)) }));
 }
 
-function runHarmonyAnalysis(k, minGapMs) {
+export function runHarmonyAnalysis(k, minGapMs) {
     const tracker = new HarmonyChangeTracker(FILE_SR, FILE_N / 2);
     const events = [];
-    fileDists = new Float32Array(fileFrames);
-    for (let f = 0; f < fileFrames; f++) {
-        const spec = fileSpectra.subarray(f * FILE_BINS, (f + 1) * FILE_BINS);
+    state.fileDists = new Float32Array(state.fileFrames);
+    for (let f = 0; f < state.fileFrames; f++) {
+        const spec = state.fileSpectra.subarray(f * FILE_BINS, (f + 1) * FILE_BINS);
         const tMs = ((f * FILE_HOP + FILE_N / 2) / FILE_SR) * 1000;
         const res = tracker.process(spec, tMs, k, minGapMs);
-        fileDists[f] = res.onset;
+        state.fileDists[f] = res.onset;
         fileThr = res.threshold;
         if (res.change) events.push({ t: res.change.onsetTime / 1000, frame: f, label: res.label, peaks: [] });
     }
     for (const ev of events) {
         // Read the form 3 frames after the change. The new notes then fill the window.
-        const f2 = Math.min(fileFrames - 1, ev.frame + 3);
-        ev.peaks = extractPeaksFromSpectrum(fileSpectra.subarray(f2 * FILE_BINS, (f2 + 1) * FILE_BINS));
+        const f2 = Math.min(state.fileFrames - 1, ev.frame + 3);
+        ev.peaks = extractPeaksFromSpectrum(state.fileSpectra.subarray(f2 * FILE_BINS, (f2 + 1) * FILE_BINS));
     }
     events.sort((a, b) => a.t - b.t);
-    fileEvents = events.filter(ev => ev.peaks.length > 0);
-    return fileEvents;
+    state.fileEvents = events.filter(ev => ev.peaks.length > 0);
+    return state.fileEvents;
 }

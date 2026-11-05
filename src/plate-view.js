@@ -1,5 +1,18 @@
-function drawPlate2D(c) {
-    if (showParticles) {
+import { DISPLAY_SIZE, state } from './config.js';
+import {
+    clashCanvas,
+    goldCanvas,
+    graticuleCanvas,
+    nodalCanvas,
+    SCOPE_BG,
+    trailCanvas,
+} from './render-buffers.js';
+import { updateAndDrawParticles } from './particles.js';
+import { fieldModeCount } from './wave-field.js';
+import { renderNodalLinesDesmos } from './nodal-renderer.js';
+
+export function drawPlate2D(c) {
+    if (state.showParticles) {
         updateAndDrawParticles();
         c.drawImage(trailCanvas, 0, 0);
     } else {
@@ -7,16 +20,16 @@ function drawPlate2D(c) {
         c.fillRect(0, 0, DISPLAY_SIZE, DISPLAY_SIZE);
     }
 
-    if (showNodalLines && fieldModeCount > 0) {
+    if (state.showNodalLines && fieldModeCount > 0) {
         renderNodalLinesDesmos();
-        if (goldLayerVisible) {
+        if (state.goldLayerVisible) {
             c.save();
             c.shadowColor = 'rgba(255, 200, 60, 0.95)';
             c.shadowBlur = 12;
             c.drawImage(goldCanvas, 0, 0, DISPLAY_SIZE, DISPLAY_SIZE);
             c.restore();
         }
-        if (clashLayerVisible) {
+        if (state.clashLayerVisible) {
             c.save();
             c.shadowColor = 'rgba(255, 50, 70, 0.95)';
             c.shadowBlur = 10;
@@ -26,7 +39,7 @@ function drawPlate2D(c) {
         c.drawImage(nodalCanvas, 0, 0, DISPLAY_SIZE, DISPLAY_SIZE);
     }
 
-    if (plateShape === 'circle') {
+    if (state.plateShape === 'circle') {
         c.beginPath();
         c.arc(DISPLAY_SIZE * 0.5, DISPLAY_SIZE * 0.5, DISPLAY_SIZE * 0.5, 0, Math.PI * 2);
         c.rect(0, 0, DISPLAY_SIZE, DISPLAY_SIZE);
@@ -43,40 +56,3 @@ function drawPlate2D(c) {
     // The graticule covers the full screen, also outside a circular plate.
     c.drawImage(graticuleCanvas, 0, 0);
 }
-
-let fpsFrames = 0;
-let fpsLastTime = performance.now();
-const fpsDisplayEl = document.getElementById('fpsDisplay');
-
-function loop(now) {
-    fpsFrames++;
-    if (now - fpsLastTime >= 500) {
-        const currentFps = Math.min(60, Math.round((fpsFrames * 1000) / (now - fpsLastTime)));
-        fpsDisplayEl.textContent = `${currentFps} FPS`;
-        fpsFrames = 0;
-        fpsLastTime = now;
-    }
-
-    if (isListeningToTab) {
-        processTabAudioSpectrum(now);
-    }
-
-    updateScore(now);
-    const multi = multiViewActive();
-    if (multi) prepareWaveModes();
-    else computeWaveField();
-    updateTension(now);
-
-    if (multi) {
-        renderMultiView(now);
-    } else if (shape3d) {
-        renderShape3D(now);
-    } else {
-        drawPlate2D(ctx);
-    }
-
-    updateSpectrumGraph(now);
-    requestAnimationFrame(loop);
-}
-
-requestAnimationFrame(loop);

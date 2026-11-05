@@ -1,19 +1,21 @@
-const VOL_N = 40;
-const VOL_N2 = VOL_N * VOL_N;
-const VOL_CELLS = VOL_N2 * VOL_N;
+import { state } from './config.js';
+
+export const VOL_N = 40;
+export const VOL_N2 = VOL_N * VOL_N;
+export const VOL_CELLS = VOL_N2 * VOL_N;
 const VOL_STEP = 2 / (VOL_N - 1);
 const VOL_RAD_BINS = 256;
 const VOL_A_BINS = 512;
 const VOL_B_BINS = 512;
-const VOL_TORUS_R = 0.62;
-const VOL_TORUS_A = 0.38;
+export const VOL_TORUS_R = 0.62;
+export const VOL_TORUS_A = 0.38;
 
 const volCoord = new Float32Array(VOL_N);
 for (let i = 0; i < VOL_N; i++) volCoord[i] = (i / (VOL_N - 1)) * 2 - 1;
 
-const ampVol = new Float32Array(VOL_CELLS);
-const goldVol = new Float32Array(VOL_CELLS);
-const clashVol = new Float32Array(VOL_CELLS);
+export const ampVol = new Float32Array(VOL_CELLS);
+export const goldVol = new Float32Array(VOL_CELLS);
+export const clashVol = new Float32Array(VOL_CELLS);
 
 let volInsideList, volRad, volA, volB, volCellValid;
 let volInsideCount = 0;
@@ -95,7 +97,7 @@ function buildVolumeDomain(name) {
 }
 
 // Each shape builds its tables one time. Views can then change shape without delay.
-function useVolumeDomain(name) {
+export function useVolumeDomain(name) {
     let d = volDomains[name];
     if (!d) d = volDomains[name] = buildVolumeDomain(name);
     volShapeName = name;
@@ -110,10 +112,10 @@ function useVolumeDomain(name) {
 }
 useVolumeDomain('cube');
 
-function createVolumeSet() {
+export function createVolumeSet() {
     return { amp: new Float32Array(VOL_CELLS), gold: new Float32Array(VOL_CELLS), clash: new Float32Array(VOL_CELLS) };
 }
-const MAIN_VOLUME = { amp: ampVol, gold: goldVol, clash: clashVol };
+export const MAIN_VOLUME = { amp: ampVol, gold: goldVol, clash: clashVol };
 
 const vCosM = new Float32Array(VOL_N);
 const vCosN = new Float32Array(VOL_N);
@@ -122,7 +124,7 @@ const vCosRad = new Float32Array(VOL_RAD_BINS);
 const vCosA = new Float32Array(VOL_A_BINS);
 const vCosB = new Float32Array(VOL_B_BINS);
 
-function accumulateModeVolume(mode, w, target) {
+export function accumulateModeVolume(mode, w, target) {
     const pi = Math.PI;
     const n = mode.n;
 
@@ -165,25 +167,24 @@ function accumulateModeVolume(mode, w, target) {
     }
 }
 
-const surfPos = new Float32Array(VOL_CELLS * 3);
+export const surfPos = new Float32Array(VOL_CELLS * 3);
 const surfVertCell = new Int32Array(VOL_CELLS);
-const surfCX = new Uint8Array(VOL_CELLS);
-const surfCY = new Uint8Array(VOL_CELLS);
-const surfCZ = new Uint8Array(VOL_CELLS);
-const surfLineIdx = new Uint32Array(VOL_CELLS * 6);
-const surfTriIdx = new Uint32Array(VOL_CELLS * 18);
+export const surfCX = new Uint8Array(VOL_CELLS);
+export const surfCY = new Uint8Array(VOL_CELLS);
+export const surfCZ = new Uint8Array(VOL_CELLS);
+export const surfLineIdx = new Uint32Array(VOL_CELLS * 6);
+export const surfTriIdx = new Uint32Array(VOL_CELLS * 18);
 const surfCellVert = new Int32Array(VOL_CELLS);
-let surfVertCount = 0;
-let surfLineCount = 0;
-let surfLineStride = 2;
-let surfTriCount = 0;
+export let surfVertCount = 0;
+export let surfLineCount = 0;
+export let surfTriCount = 0;
 
 const SN_EA = [0, 2, 4, 6, 0, 1, 4, 5, 0, 1, 2, 3];
 const SN_EB = [1, 3, 5, 7, 2, 3, 6, 7, 4, 5, 6, 7];
 const snV = new Float32Array(8);
 const snOff = [0, 1, VOL_N, VOL_N + 1, VOL_N2, VOL_N2 + 1, VOL_N2 + VOL_N, VOL_N2 + VOL_N + 1];
 
-function extractVolumeSurface(F) {
+export function extractVolumeSurface(F) {
     surfCellVert.fill(-1);
     let nv = 0, nl = 0, nt = 0;
 
@@ -264,7 +265,7 @@ function extractVolumeSurface(F) {
         }
     }
 
-    const s = surfLineStride;
+    const s = state.surfLineStride;
     for (let k = 0; k < nv; k++) {
         const i = surfVertCell[k];
         const x = surfCX[k], y = surfCY[k], z = surfCZ[k];

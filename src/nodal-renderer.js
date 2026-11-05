@@ -1,4 +1,23 @@
-function smoothShare(share) {
+import { FIELD_SIZE, state } from './config.js';
+import { ampField, cellInsideCircle, clashField, goldField } from './lookup-tables.js';
+import {
+    clashCtx,
+    clashImageData,
+    clashPixels32,
+    goldCtx,
+    goldImageData,
+    goldPixels32,
+    NODAL_BASE,
+    nodalColorLUT,
+    nodalCtx,
+    nodalImageData,
+    nodalPixels32,
+    packRGBA,
+} from './render-buffers.js';
+import { plateFade } from './wave-field.js';
+import { fxVisSoft } from './fx-plate.js';
+
+export function smoothShare(share) {
     const g = (share - 0.45) / 0.35;
     return g <= 0 ? 0 : (g >= 1 ? 1 : g * g * (3 - 2 * g));
 }
@@ -12,18 +31,18 @@ function gradientShare2D(field, idx, dzdx, dzdy) {
     return fMag / (fMag + Math.sqrt(rx * rx + ry * ry) + 1e-6);
 }
 
-function renderNodalLinesDesmos() {
-    const isCircle = plateShape === 'circle';
+export function renderNodalLinesDesmos() {
+    const isCircle = state.plateShape === 'circle';
     const soft = fxVisSoft();
     const halfWidth = 0.85 + 0.6 * soft;
     const feather = 0.9 + 2.2 * soft;
     const invFeather = 1.0 / feather;
     const fadeMul = plateFade;
 
-    const useGold = showGoldenHarmonics && goldLevel > 0.01 && goldModeCount > 0;
-    const useClash = showClashingHarmonics && clashLevel > 0.01 && clashModeCount > 0;
-    const partialGold = useGold && !goldAllModes;
-    const partialClash = useClash && !clashAllModes;
+    const useGold = state.showGoldenHarmonics && state.goldLevel > 0.01 && state.goldModeCount > 0;
+    const useClash = state.showClashingHarmonics && state.clashLevel > 0.01 && state.clashModeCount > 0;
+    const partialGold = useGold && !state.goldAllModes;
+    const partialClash = useClash && !state.clashAllModes;
     const now = performance.now();
     const shimmerT = now * 0.004;
     const flickerT = now * 0.016;
@@ -61,11 +80,11 @@ function renderNodalLinesDesmos() {
                 let gtClash = 0;
                 if (useGold) {
                     const share = partialGold ? gradientShare2D(goldField, idx, dzdx, dzdy) : 1;
-                    gtGold = smoothShare(share) * goldLevel;
+                    gtGold = smoothShare(share) * state.goldLevel;
                 }
                 if (useClash) {
                     const share = partialClash ? gradientShare2D(clashField, idx, dzdx, dzdy) : 1;
-                    gtClash = smoothShare(share) * clashLevel;
+                    gtClash = smoothShare(share) * state.clashLevel;
                 }
 
                 if (gtClash > gtGold) {
@@ -102,8 +121,8 @@ function renderNodalLinesDesmos() {
     }
 
     nodalCtx.putImageData(nodalImageData, 0, 0);
-    goldLayerVisible = anyGold;
-    clashLayerVisible = anyClash;
+    state.goldLayerVisible = anyGold;
+    state.clashLayerVisible = anyClash;
     if (anyGold) goldCtx.putImageData(goldImageData, 0, 0);
     if (anyClash) clashCtx.putImageData(clashImageData, 0, 0);
 }

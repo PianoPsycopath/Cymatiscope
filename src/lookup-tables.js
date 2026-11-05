@@ -1,29 +1,31 @@
-const normCoord = new Float32Array(FIELD_SIZE);
+import { FIELD_CELLS, FIELD_SIZE, R_BINS, THETA_BINS } from './config.js';
+
+export const normCoord = new Float32Array(FIELD_SIZE);
 for (let i = 0; i < FIELD_SIZE; i++) {
     normCoord[i] = (i / (FIELD_SIZE - 1)) * 2 - 1;
 }
 
-const cosM = new Float32Array(FIELD_SIZE);
-const cosN = new Float32Array(FIELD_SIZE);
+export const cosM = new Float32Array(FIELD_SIZE);
+export const cosN = new Float32Array(FIELD_SIZE);
 
-const cellRIndex = new Uint16Array(FIELD_CELLS);
-const cellThetaIndex = new Uint16Array(FIELD_CELLS);
-const cellInsideCircle = new Uint8Array(FIELD_CELLS);
-const cosMR = new Float32Array(R_BINS);
-const cosNTheta = new Float32Array(THETA_BINS);
+export const cellRIndex = new Uint16Array(FIELD_CELLS);
+export const cellThetaIndex = new Uint16Array(FIELD_CELLS);
+export const cellInsideCircle = new Uint8Array(FIELD_CELLS);
+export const cosMR = new Float32Array(R_BINS);
+export const cosNTheta = new Float32Array(THETA_BINS);
 
-function createFieldSet() {
+export function createFieldSet() {
     return {
         ampField: new Float32Array(FIELD_CELLS),
         goldField: new Float32Array(FIELD_CELLS),
         clashField: new Float32Array(FIELD_CELLS)
     };
 }
-const MAIN_FIELDS = createFieldSet();
-let ampField = MAIN_FIELDS.ampField;
-let goldField = MAIN_FIELDS.goldField;
-let clashField = MAIN_FIELDS.clashField;
-function bindFieldSet(s) {
+export const MAIN_FIELDS = createFieldSet();
+export let ampField = MAIN_FIELDS.ampField;
+export let goldField = MAIN_FIELDS.goldField;
+export let clashField = MAIN_FIELDS.clashField;
+export function bindFieldSet(s) {
     ampField = s.ampField;
     goldField = s.goldField;
     clashField = s.clashField;

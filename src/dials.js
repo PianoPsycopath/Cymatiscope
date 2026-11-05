@@ -176,7 +176,7 @@ function dialBuild(input) {
     update();
 }
 
-function dialSync(input) {
+export function dialSync(input) {
     if (input && input._dialUpdate) input._dialUpdate();
 }
 
