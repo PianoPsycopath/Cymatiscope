@@ -1,4 +1,4 @@
-import { FIELD_SIZE, state } from './config.js';
+import { DISPLAY_SIZE, FIELD_SIZE, state } from './config.js';
 import { ampField, cellInsideCircle, clashField, goldField } from './lookup-tables.js';
 import {
     clashCtx,
@@ -13,6 +13,7 @@ import {
     nodalImageData,
     nodalPixels32,
     packRGBA,
+    plateSize,
 } from './render-buffers.js';
 import { plateFade } from './wave-field.js';
 import { fxVisSoft } from './fx-plate.js';
@@ -35,7 +36,9 @@ export function renderNodalLinesDesmos() {
     const isCircle = state.plateShape === 'circle';
     const soft = fxVisSoft();
     const halfWidth = 0.85 + 0.6 * soft;
-    const feather = 0.9 + 2.2 * soft;
+    // On a large canvas the field is scaled up. A thinner feather keeps the lines sharp.
+    const renderK = Math.max(1, plateSize / DISPLAY_SIZE);
+    const feather = Math.max(0.6, (0.9 + 2.2 * soft) / Math.sqrt(renderK));
     const invFeather = 1.0 / feather;
     const fadeMul = plateFade;
 

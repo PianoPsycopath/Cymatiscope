@@ -6,6 +6,7 @@ import {
     particlePixels32,
     particleStampCanvas,
     particleStampCtx,
+    plateSize,
     SCOPE_BG_RGB,
     trailCtx,
 } from './render-buffers.js';
@@ -75,7 +76,10 @@ export function updateAndDrawParticles() {
     const isCircle = state.plateShape === 'circle';
     const speedMult = state.globalSpeedMultiplier;
     const scaleToGrid = (FIELD_SIZE - 3) * 0.5;
-    const scaleToCanvas = (DISPLAY_SIZE - 2) * 0.5;
+    const size = plateSize;
+    // The grain stamp grows with the pixel size. It keeps the same look on a large canvas.
+    const stamp = Math.max(2, Math.round(2 * size / DISPLAY_SIZE));
+    const scaleToCanvas = (size - stamp) * 0.5;
 
     for (let i = 0; i < NUM_PARTICLES; i++) {
         let x = pxArr[i];
@@ -147,10 +151,11 @@ export function updateAndDrawParticles() {
         const alphaIdx = Math.max(45, Math.min(255, (255 - velSq * 35000) | 0));
         const color32 = particleColorLUT[alphaIdx];
 
-        const pRow = cpy * DISPLAY_SIZE + cpx;
-        particlePixels32[pRow] = color32;
-        particlePixels32[pRow + 1] = color32;
-        particlePixels32[pRow + DISPLAY_SIZE] = color32;
+        const pRow = cpy * size + cpx;
+        for (let sy = 0; sy < stamp; sy++) {
+            const o = pRow + sy * size;
+            for (let sx = 0; sx < stamp; sx++) particlePixels32[o + sx] = color32;
+        }
     }
 
     particleStampCtx.putImageData(particleImageData, 0, 0);
@@ -158,6 +163,6 @@ export function updateAndDrawParticles() {
     const baseTrail = (state.isListeningToTab && state.audioSyncMode === 'continuous') ? 0.22 : 0.34;
     const trailAlpha = Math.max(0.1, baseTrail - 0.2 * fxVisSoft());
     trailCtx.fillStyle = `rgba(${SCOPE_BG_RGB}, ${trailAlpha})`;
-    trailCtx.fillRect(0, 0, DISPLAY_SIZE, DISPLAY_SIZE);
+    trailCtx.fillRect(0, 0, size, size);
     trailCtx.drawImage(particleStampCanvas, 0, 0);
 }

@@ -3,18 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Polyphonic Chladni Simulation</title>
-    <link rel="stylesheet" href="/src/css/styles.css">
-    <link rel="stylesheet" href="/src/css/dials.css">
+    <title>Cymatiscope</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <link rel="stylesheet" href="/css/dials.css">
 </head>
 <body>
 
     <div class="app">
 
         <header class="hdr">
-            <div class="hdr-id">CHLADNI<span>-01</span></div>
+            <div class="hdr-id">CYMATISCOPE<span>-01</span></div>
             <div class="hdr-mid">
-                <div class="hdr-title">Polyphonic Chladni Synthesizer <span class="jp">共鳴解析</span></div>
+                <div class="hdr-title">Cymatiscope <span class="jp">共鳴解析</span></div>
                 <div class="hdr-sub">Cymatics resonance unit</div>
                 <div class="hatch"></div>
             </div>
@@ -168,11 +168,11 @@
                     <div class="pt"><span class="no">06</span>Form Mode<span class="fill"></span></div>
                     <div class="pb">
                         <div class="seg">
-                            <button id="btnModeLocked" class="btn on">Locked</button>
-                            <button id="btnModeContinuous" class="btn">Continuous</button>
+                            <button id="btnModeLocked" class="btn">Locked</button>
+                            <button id="btnModeContinuous" class="btn on">Continuous</button>
                         </div>
 
-                        <div id="changeEveryContainer" class="sub">
+                        <div id="changeEveryContainer" class="sub dim">
                             <div class="row">
                                 <span class="sub-title">Change Every</span>
                                 <div class="seg compact">
@@ -223,11 +223,11 @@
                         <div class="tgl-grid">
                             <div class="row">
                                 <label for="nodalToggle">Nodal Lines</label>
-                                <input type="checkbox" id="nodalToggle" class="sw">
+                                <input type="checkbox" id="nodalToggle" class="sw" checked>
                             </div>
                             <div class="row">
                                 <label for="particleToggle">Particles</label>
-                                <input type="checkbox" id="particleToggle" class="sw" checked>
+                                <input type="checkbox" id="particleToggle" class="sw">
                             </div>
                             <div class="row">
                                 <label for="goldToggle" title="Nodal lines glow gold where perfect intervals (octave, fifth, fourth) or Solfeggio pitches sound">&#10022; Gold</label>
